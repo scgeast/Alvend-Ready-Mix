@@ -1,1 +1,200 @@
+/* =====================================================
+   LOGIN PAGE STYLES
+   ===================================================== */
+
+.alvend-login {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: linear-gradient(135deg, #fff 0%, #f8fafc 100%);
+}
+
+.alvend-login .login-wrapper {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+.alvend-login .login-left {
+  flex: 1;
+  background: radial-gradient(circle at 80% 20%, rgba(255, 255, 255, .18), transparent 28%),
+              radial-gradient(circle at 15% 85%, rgba(0, 0, 0, .12), transparent 30%),
+              linear-gradient(145deg, #8E1515 0%, #C62828 48%, #E53935 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 60px;
+  position: relative;
+  overflow: hidden;
+}
+
+.alvend-login .login-left::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -30%;
+  width: 500px;
+  height: 500px;
+  background: rgba(255, 255, 255, .05);
+  border-radius: 50%;
+}
+
+.alvend-login .login-left::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  left: -20%;
+  width: 400px;
+  height: 400px;
+  background: rgba(255, 255, 255, .05);
+  border-radius: 50%;
+}
+
+.alvend-login .login-left-content {
+  position: relative;
+  z-index: 2;
+  max-width: 620px;
+}
+
+.alvend-login .login-left h1 {
+  font-size: clamp(34px, 4vw, 54px);
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 20px;
+  letter-spacing: -1.5px;
+}
+
+.alvend-login .login-left-subtitle {
+  font-size: 17px;
+  opacity: .9;
+  font-weight: 300;
+  letter-spacing: .2px;
+}
+
+.alvend-login .login-right {
+  flex: 1;
+  background: rgba(255, 255, 255, .94);
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 60px 80px;
+  overflow-y: auto;
+}
+
+.alvend-login .login-logo {
+  margin-bottom: 40px;
+  padding: 12px 18px;
+  border: 1px solid #F1F5F9;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
+}
+
+.alvend-login .login-form {
+  width: 100%;
+  max-width: 430px;
+}
+
+.alvend-login .form-group {
+  margin-bottom: 18px;
+}
+
+.alvend-login .form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.alvend-login .form-group input {
+  width: 100%;
+  padding: 13px 15px;
+  border: 1px solid #CBD5E1;
+  border-radius: 10px;
+  font-size: 14px;
+  transition: all .2s;
+  background: #F8FAFC;
+  font-family: inherit;
+}
+
+.alvend-login .form-group input:hover {
+  border-color: #94A3B8;
+}
+
+.alvend-login .form-group input:focus {
+  outline: none;
+  border-color: var(--arm-red-2);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(229, 57, 53, .10);
+}
+
+.alvend-login .btn-login {
+  width: 100%;
+  background: linear-gradient(135deg, var(--arm-red), var(--arm-red-2));
+  color: #fff;
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  margin-top: 10px;
+  box-shadow: 0 8px 18px rgba(198, 40, 40, .22);
+}
+
+.alvend-login .btn-login:hover {
+  background: linear-gradient(135deg, #A91F1F, #C62828);
+  transform: translateY(-1px);
+}
+
+.alvend-login .btn-login:disabled {
+  background: #93C5FD;
+  cursor: not-allowed;
+}
+
+.alvend-login .forgot-link {
+  display: block;
+  text-align: right;
+  margin-top: 12px;
+  color: #6B7280;
+  font-size: 13px;
+}
+
+.alvend-login .error-box {
+  background: #FEE2E2;
+  color: #991B1B;
+  padding: 12px 15px;
+  border-radius: 6px;
+  border-left: 4px solid #DC2626;
+  font-size: 13px;
+}
+
+.alvend-login .login-footer {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  display: flex;
+  gap: 20px;
+  color: #6B7280;
+  font-size: 13px;
+  z-index: 1001;
+}
+
+/* Password toggle wrapper */
+.alvend-password-wrap { position: relative; }
+.alvend-password-wrap input { padding-right: 44px !important; }
+.alvend-password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 5px;
+}
 
