@@ -96,7 +96,7 @@
 
 .alvend-login .login-logo-img {
   display: block;
-  height: 80px;
+  height: 120px;        /* ubah angka ini kalau mau logo lebih besar/kecil */
   width: auto;
   max-width: 220px;
   object-fit: contain;
