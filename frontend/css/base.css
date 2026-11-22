@@ -1,1 +1,43 @@
+/* =====================================================
+   BASE STYLES — Reset, body, scrollbar, variables
+   ===================================================== */
+
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
+
+body {
+  background: #F3F4F6 !important;
+  color: #111827 !important;
+  font-family: 'Segoe UI', Tahoma, Arial, sans-serif !important;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+a { text-decoration: none; color: inherit; }
+.hidden { display: none !important; }
+
+[x-cloak] { display: none !important; }
+
+/* CSS Variables */
+:root {
+  --arm-red: #C62828;
+  --arm-red-2: #E53935;
+  --arm-red-soft: #FFF1F2;
+  --arm-blue: #2563EB;
+  --arm-green: #10B981;
+  --arm-ink: #111827;
+  --arm-muted: #64748B;
+  --arm-border: #E2E8F0;
+  --arm-bg: #F5F7FB;
+  --arm-card: #FFFFFF;
+  --arm-shadow: 0 10px 30px rgba(15, 23, 42, .07);
+}
+
+html { scroll-behavior: smooth; }
+
+::selection { background: #FECACA; color: #7F1D1D; }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: #F1F5F9; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 20px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
