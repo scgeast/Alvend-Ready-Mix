@@ -1,1 +1,144 @@
+/* =====================================================
+   TABLES
+   ===================================================== */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead {
+  background: #FEE2E2 !important;
+  border-bottom: 1px solid #FCA5A5 !important;
+}
+
+.th {
+  padding: 10px 8px !important;
+  text-align: left;
+  font-size: .7rem;
+  font-weight: 600 !important;
+  color: #7F1D1D !important;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  white-space: nowrap;
+  border: 1px solid #FCA5A5 !important;
+}
+
+.td {
+  padding: 10px 8px !important;
+  font-size: .85rem;
+  color: #334155;
+  border: 1px solid #E5E7EB !important;
+  vertical-align: top;
+}
+
+tbody tr {
+  border-bottom: 1px solid #f1f5f9;
+  transition: background .15s;
+}
+
+tbody tr:hover {
+  background: #FEF2F2 !important;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 10px;
+}
+
+/* Specific status badges for tables */
+.badge-A { background: #DBEAFE; color: #1E40AF; }
+.badge-B { background: #FEF3C7; color: #92400E; }
+.badge-C { background: #FEE2E2; color: #991B1B; }
+.badge-E { background: #D1FAE5; color: #065F46; }
+
+/* Order link */
+.order-link {
+  cursor: pointer;
+  color: #1E88E5;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all .2s;
+  display: inline-block;
+}
+
+.order-link:hover {
+  color: #DC2626;
+  text-decoration: underline;
+}
+
+/* Truck cell helpers (used in jadwal table) */
+.truck-list-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.truck-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #FEF3C7;
+  color: #92400E;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.truck-badge.done { background: #D1FAE5; color: #065F46; }
+.truck-badge.process { background: #DBEAFE; color: #1E40AF; }
+.truck-badge.wait { background: #F3F4F6; color: #6B7280; }
+.truck-badge.reject {
+  background: #FEE2E2;
+  color: #991B1B;
+  text-decoration: line-through;
+}
+
+.qty-list-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  text-align: right;
+}
+
+.qty-badge {
+  display: inline-block;
+  background: #FEE2E2;
+  color: #7F1D1D;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 10px;
+}
+
+.qty-badge.done { background: #D1FAE5; color: #065F46; }
+.qty-badge.process { background: #DBEAFE; color: #1E40AF; }
+.qty-badge.wait { background: #F3F4F6; color: #6B7280; }
+.qty-badge.reject {
+  background: #FEE2E2;
+  color: #991B1B;
+  text-decoration: line-through;
+}
+
+.qty-total {
+  font-weight: 700;
+  color: #DC2626;
+  font-size: 11px;
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px dashed #FCA5A5;
+}
+
+.qty-total.valid { color: #10B981; }
+.qty-total small {
+  font-weight: normal;
+  color: #6B7280;
+  display: block;
+  font-size: 9px;
+}
 
