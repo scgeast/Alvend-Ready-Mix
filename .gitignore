@@ -1,1 +1,58 @@
+# ═══════════════════════════════════════════════════════════════
+#  .gitignore — ALVEND Readymix Management
+# ═══════════════════════════════════════════════════════════════
+
+# ─── OS Files ───
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# ─── Editor / IDE ───
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ─── Logs ───
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── Dependencies (kalau nanti pakai npm) ───
+node_modules/
+
+# ─── Build output (kalau nanti pakai build tool) ───
+dist/
+build/
+
+# ─── Environment & Secrets ───
+# ⚠ Jangan commit file yang berisi secret/key asli!
+.env
+.env.local
+.env.*.local
+*.secret
+credentials.json
+service-account-key.json
+
+# ─── Supabase local (kalau pakai Supabase CLI) ───
+supabase/.branches/
+supabase/.temp/
+
+# ─── Backup files ───
+backup_*.sql
+*.bak
+*.dump
+
+# ─── Temporary files ───
+*.tmp
+*.temp
+.cache/
+
+# ─── Lokal-only files ───
+*.local
+local-notes.md
 
