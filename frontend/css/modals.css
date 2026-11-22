@@ -1,1 +1,190 @@
+/* =====================================================
+   MODALS
+   ===================================================== */
+
+.modal-bg,
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, .55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-overlay { display: none; }
+.modal-overlay.active { display: flex; }
+
+.modal-box,
+.modal {
+  background: #fff;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 70px rgba(15, 23, 42, .22);
+}
+
+.modal-header {
+  background: linear-gradient(135deg, #A91F1F, #C62828);
+  color: #fff;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+}
+
+.modal-header .close-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-body { padding: 22px; }
+
+.modal-footer {
+  padding: 15px 20px;
+  border-top: 1px solid #E2E7EB;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  background: #FAFBFC;
+}
+
+/* Toast notifications */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast {
+  background: #fff;
+  border: 1px solid #E2E8F0;
+  border-left: 4px solid #10B981;
+  padding: 12px 20px;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, .14);
+  min-width: 300px;
+  animation: slideIn .3s ease;
+  font-size: 13px;
+}
+
+.toast.error { border-left-color: #DC2626; }
+.toast.warning { border-left-color: #F59E0B; }
+.toast.info { border-left-color: #1E88E5; }
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Truck card (used in jadwal) */
+.truck-card {
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+  background: #FCFDFE;
+  transition: all .3s;
+  position: relative;
+}
+
+.truck-card.just-updated {
+  border-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, .15);
+  background: #F0FDF4;
+}
+
+.truck-card.rejected {
+  border-color: #DC2626;
+  background: #FEF2F2;
+  opacity: .9;
+}
+
+.truck-header {
+  font-size: 16px;
+  font-weight: 700;
+  color: #DC2626;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.truck-card.rejected .truck-header { color: #991B1B; }
+.truck-header .truck-actions { display: flex; gap: 6px; }
+
+.truck-info {
+  font-size: 13px;
+  color: #6B7280;
+  margin-bottom: 12px;
+}
+
+.truck-remarks {
+  margin-top: 10px;
+  padding: 10px;
+  background: #FEE2E2;
+  border-left: 4px solid #DC2626;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #991B1B;
+}
+
+.truck-remarks strong { display: block; margin-bottom: 2px; }
+
+/* Hardcopy box */
+.hardcopy-box {
+  background: #EFF6FF;
+  border-left: 4px solid #1E88E5;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.hardcopy-box h3 {
+  font-size: 16px;
+  margin-bottom: 10px;
+  color: #1E3A8A;
+}
+
+.hardcopy-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+/* Timeline */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 15px;
+  border-left: 2px solid #E5E7EB;
+  margin: 10px 0;
+}
+
+.timeline-item {
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.timeline-item.done { color: #10B981; }
+.timeline-item.pending { color: #F59E0B; font-style: italic; }
+.timeline-item.reject { color: #DC2626; font-weight: 600; }
 
