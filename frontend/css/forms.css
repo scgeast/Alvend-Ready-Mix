@@ -1,1 +1,291 @@
+/* =====================================================
+   FORMS
+   ===================================================== */
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+.form-row.col-2 { grid-template-columns: repeat(2, 1fr); }
+.form-row.col-4 { grid-template-columns: repeat(4, 1fr); }
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #E5E7EB;
+}
+
+.input-readonly {
+  background: #F3F4F6 !important;
+  color: #6B7280;
+}
+
+.input-hint {
+  font-size: 11px;
+  color: #9CA3AF;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.input-hint.warning { color: #F59E0B; }
+.input-hint.success { color: #10B981; }
+
+/* IO form variant */
+.io-form .form-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+.io-form .form-row.col-4 { grid-template-columns: repeat(4, 1fr); }
+.io-form .form-row.col-2 { grid-template-columns: repeat(2, 1fr); }
+.io-form label {
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* Form sections */
+.form-section {
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  background: #FBFCFE;
+}
+
+.form-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #B91C1C;
+  margin-bottom: 15px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #FEE2E2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-section-title .num {
+  background: linear-gradient(135deg, #C62828, #EF5350);
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(198, 40, 40, .18);
+}
+
+/* Plant dropdown (multi-select) */
+.plant-dropdown-wrapper { position: relative; }
+
+.plant-dropdown-btn {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #D1D5DB;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: inherit;
+}
+
+.plant-dropdown-btn:hover { border-color: #DC2626; }
+.plant-dropdown-btn .arrow { color: #6B7280; font-size: 12px; }
+
+.plant-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .1);
+  margin-top: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 200;
+  display: none;
+}
+
+.plant-dropdown-menu.open { display: block; }
+
+.plant-option {
+  padding: 10px 15px;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background .15s;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.plant-option:last-child { border-bottom: none; }
+.plant-option:hover { background: #FEF2F2; }
+.plant-option.selected {
+  background: #FEE2E2;
+  color: #DC2626;
+  font-weight: 600;
+}
+
+.plant-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #DC2626;
+  cursor: pointer;
+}
+
+.plant-dropdown-actions {
+  padding: 8px 15px;
+  background: #F9FAFB;
+  border-top: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  position: sticky;
+  bottom: 0;
+}
+
+.plant-dropdown-actions span {
+  cursor: pointer;
+  color: #1E88E5;
+  font-weight: 600;
+}
+
+.plant-dropdown-actions span:hover { text-decoration: underline; }
+
+/* Mutu row (multi-input row) */
+.mutu-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 120px 120px 40px;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 10px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+}
+
+.mutu-row .mutu-num {
+  background: #DC2626;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.btn-remove-mutu {
+  background: #FEE2E2;
+  color: #DC2626;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.btn-remove-mutu:hover { background: #FCA5A5; }
+
+/* Upload box (file input) */
+.upload-box {
+  border: 2px dashed #D1D5DB;
+  border-radius: 12px;
+  padding: 30px;
+  text-align: center;
+  background: #FAFBFC;
+  cursor: pointer;
+  transition: all .2s;
+  margin-bottom: 15px;
+}
+
+.upload-box:hover {
+  border-color: #DC2626;
+  background: #FEF2F2;
+}
+
+.upload-box.dragover {
+  border-color: #DC2626;
+  background: #FEE2E2;
+}
+
+.upload-icon { font-size: 48px; color: #9CA3AF; margin-bottom: 10px; }
+.upload-text { font-size: 14px; color: #374151; font-weight: 600; margin-bottom: 5px; }
+.upload-hint { font-size: 12px; color: #9CA3AF; }
+
+.upload-file-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  background: #D1FAE5;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  border-left: 4px solid #10B981;
+}
+
+.upload-file-info .file-icon { font-size: 24px; }
+.upload-file-info .file-name { font-weight: 600; color: #065F46; flex: 1; }
+.upload-file-info .file-size { font-size: 11px; color: #6B7280; }
+
+.upload-file-info .btn-remove {
+  background: #FEE2E2;
+  color: #991B1B;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.upload-preview {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  background: #fff;
+}
+
+.upload-preview table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.upload-preview th {
+  background: #FEE2E2;
+  color: #7F1D1D;
+  padding: 8px;
+  text-align: left;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.upload-preview td { padding: 6px 8px; border-bottom: 1px solid #F3F4F6; }
+.upload-preview tr:hover { background: #FEF2F2; }
 
