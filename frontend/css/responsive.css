@@ -1,1 +1,153 @@
+/* =====================================================
+   RESPONSIVE — Mobile & tablet
+   ===================================================== */
+
+html, body { max-width: 100%; overflow-x: hidden; }
+img, svg { max-width: 100%; }
+button, .btn-primary, .btn-secondary, .btn-success, .btn-danger, .btn-warning { min-height: 40px; }
+
+/* Large screens — sidebar width adjustment */
+@media (max-width: 1100px) {
+  .sidebar { width: 240px; }
+  .main-content { margin-left: 240px; }
+  .sidebar-toggle { left: 260px; }
+  .content-area { padding: 22px; }
+}
+
+@media (max-width: 1024px) {
+  .sidebar { width: 220px !important; }
+  .main-content, .content, .page-content { max-width: 100% !important; }
+  .card, .panel { border-radius: 12px; }
+  .table-wrapper, .overflow-x-auto {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  table { min-width: 720px; }
+  .form-row, .form-row.col-4, .io-form .form-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Tablet & mobile */
+@media (max-width: 900px) {
+  .alvend-login .login-left { display: none; }
+  .alvend-login .login-right { flex: 1; padding: 40px 24px; }
+  .content-area { padding: 18px; }
+  .topbar { padding: 12px 18px; }
+  .topbar-right .live-badge { display: none; }
+}
+
+@media (max-width: 768px) {
+  body { font-size: 14px; }
+  .sidebar {
+    width: 100% !important;
+    max-width: 290px;
+    z-index: 1000;
+    transform: translateX(-100%);
+    box-shadow: 18px 0 40px rgba(15, 23, 42, .18);
+  }
+  .sidebar.mobile-open,
+  .app-wrapper .sidebar:not(.collapsed) { transform: translateX(0); }
+
+  .main-content,
+  .main-content.expanded,
+  .content,
+  .page-content {
+    width: 100% !important;
+    margin-left: 0 !important;
+    padding: 12px !important;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    min-height: 42px !important;
+    padding: 4px 10px 4px 12px !important;
+  }
+  .topbar-title { font-size: 14px !important; }
+  .topbar-right { gap: 6px !important; }
+  .topbar-user {
+    padding: 2px !important;
+    background: transparent !important;
+  }
+  .top-avatar { width: 26px !important; height: 26px !important; }
+  .topbar-right #liveClock { display: none; }
+  .topbar-user span:not(.top-avatar) { display: none; }
+
+  .card, .panel { padding: 12px !important; margin-bottom: 12px; }
+  .grid { grid-template-columns: 1fr !important; }
+  .grid.md\:grid-cols-2,
+  .grid.lg\:grid-cols-2,
+  .grid.lg\:grid-cols-3,
+  .grid.lg\:grid-cols-4 { grid-template-columns: 1fr !important; }
+
+  .form-row, .form-row.col-2, .form-row.col-4,
+  .io-form .form-row,
+  .io-form .form-row.col-2,
+  .io-form .form-row.col-4 {
+    grid-template-columns: 1fr !important;
+    display: grid !important;
+    gap: 10px !important;
+  }
+
+  .form-row.col-2, .col-2 { grid-template-columns: 1fr !important; }
+  .flex { min-width: 0; }
+  .flex.justify-between,
+  .flex.items-center.justify-between {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .modal-box {
+    width: calc(100vw - 24px) !important;
+    max-height: 92vh !important;
+    margin: 12px;
+  }
+  .modal-bg { padding: 0 !important; }
+
+  .input, select, input, textarea {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .th { font-size: .66rem; padding: .55rem .6rem; }
+  .td { font-size: .76rem; padding: .55rem .6rem; }
+
+  .kpi, .stat-card { min-width: 0 !important; }
+  .page-header h1, .page-title { font-size: 1.25rem !important; }
+
+  .btn-primary, .btn-secondary, .btn-success, .btn-danger, .btn-warning {
+    font-size: .82rem;
+    padding: .55rem .75rem;
+  }
+
+  .mutu-row { grid-template-columns: 1fr; gap: 8px; }
+  .mutu-row .mutu-num { display: none; }
+
+  .periode-filter {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .periode-info { margin-left: 0; }
+
+  .content-area { padding-top: 8px !important; }
+}
+
+@media (max-width: 480px) {
+  .main-content, .content, .page-content { padding: 8px !important; }
+  .card, .panel {
+    padding: 10px !important;
+    border-radius: 10px;
+  }
+  .panel-header { flex-wrap: wrap; gap: 6px; }
+  .form-actions, .actions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100%;
+  }
+  .form-actions > *, .actions > * { width: 100% !important; }
+  .modal-box { width: calc(100vw - 12px) !important; }
+  .table-wrapper, .overflow-x-auto { margin-left: -2px; margin-right: -2px; }
+}
 
