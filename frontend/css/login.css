@@ -89,6 +89,18 @@
   border: 1px solid #F1F5F9;
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.alvend-login .login-logo-img {
+  display: block;
+  height: 80px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+  border-radius: 8px;
 }
 
 .alvend-login .login-form {
@@ -197,4 +209,3 @@
   cursor: pointer;
   padding: 5px;
 }
-
