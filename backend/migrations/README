@@ -1,0 +1,40 @@
+# Migrations
+
+Folder ini menyimpan perubahan skema database Supabase dari waktu ke waktu.
+
+## Konvensi Penamaan
+
+```
+NNN_deskripsi_pendek.sql
+```
+
+Contoh:
+- `001_initial_schema.sql` — skema awal (ini = supabase_schema.sql yang sudah dijalankan)
+- `002_add_phone_to_customers.sql` — tambah kolom phone di tabel customers
+- `003_add_index_orders_status.sql` — tambah index di orders.status
+
+## Cara Pakai
+
+1. Buat file migration baru dengan nomor urut berikutnya
+2. Tulis SQL untuk perubahan skema
+3. Jalankan di Supabase SQL Editor
+4. Commit file ke repo
+
+## Contoh Migration
+
+```sql
+-- 002_add_phone_to_customers.sql
+-- Tambah kolom phone di tabel users (khusus role customer)
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+
+COMMENT ON COLUMN users.phone IS 'Nomor telepon customer (khusus role customer)';
+```
+
+## Catatan
+
+- Jangan hapus migration yang sudah dijalankan
+- Jangan edit migration yang sudah dijalankan — buat migration baru untuk fix
+- Selalu pakai `IF NOT EXISTS` / `IF EXISTS` untuk safety
+- Untuk perubahan destruct (DROP COLUMN, DROP TABLE), pakai `BEGIN; ... COMMIT;` supaya bisa rollback
+
