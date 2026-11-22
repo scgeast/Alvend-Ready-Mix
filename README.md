@@ -126,7 +126,8 @@ git push
 
 # Cek status deploy di tab Actions
 # Tunggu 1-2 menit, website otomatis update
-```
+
+.```
 
 ## License
 
