@@ -5,8 +5,8 @@
    Ambil dari: Supabase Dashboard → Project Settings → API Keys
    ===================================================== */
 
-const SUPABASE_URL = 'https://74S88rRafH0wVi70p40hWA.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_74S88rRafH0wVi70p40hWA_b8ivR...'; // ← GANTI dengan key LENGKAP dari dashboard
+const SUPABASE_URL = 'https://ejyvhnkgpllkemdlwzjf.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_74S88rRafH0wVi70p4OhWA_b8ivRJu4'; // ← GANTI dengan key LENGKAP dari dashboard
 
 let supabaseClient = null;
 try {
