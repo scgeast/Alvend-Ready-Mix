@@ -180,6 +180,11 @@ function app() {
       this.adFilter.date_to = todayISO();
       this.jFilter.date = todayISO();
       this.applyDashPreset('month');
+
+      // ─── Start Realtime subscription jika user sudah login ───
+      if (this.currentUser && typeof window.Realtime !== 'undefined') {
+        window.Realtime.start(() => this.reload());
+      }
     },
 
     /* ─────────── DASHBOARD FILTER ─────────── */
@@ -637,6 +642,10 @@ function app() {
         this.loginForm = { username: '', password: '' };
         await this.nav('dashboard');
         this.toastMsg('Login Developer berhasil');
+        // ─── Start Realtime subscription ───
+        if (typeof window.Realtime !== 'undefined') {
+          window.Realtime.start(() => this.reload());
+        }
         return;
       }
 
@@ -666,6 +675,10 @@ function app() {
       }
       await this.nav(defaultPage);
       this.toastMsg('Selamat datang, ' + u.name);
+      // ─── Start Realtime subscription ───
+      if (typeof window.Realtime !== 'undefined') {
+        window.Realtime.start(() => this.reload());
+      }
     },
 
     async recordLogin(user, uidInput, status) {
@@ -745,6 +758,10 @@ function app() {
     },
 
     async logout() {
+      // ─── Stop Realtime subscription ───
+      if (typeof window.Realtime !== 'undefined') {
+        window.Realtime.stop();
+      }
       await signOutSupabaseAuth();
       this.currentUser = null;
       localStorage.removeItem('beton_current');
