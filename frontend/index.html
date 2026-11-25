@@ -128,7 +128,7 @@
           </template>
           <template x-if="hasAccess('dashboard')">
             <div>
-              <a href="#page=dashboard" @click.prevent="nav('dashboard')" :class="page==='dashboard'?'active':''" class="menu-link">
+              <a x-show="hasAccessExact('dashboard')" href="#page=dashboard" @click.prevent="nav('dashboard')" :class="page==='dashboard'?'active':''" class="menu-link">
                 <i class="fa-solid fa-gauge-high w-5"></i><span x-show="sidebarOpen">Dashboard</span>
               </a>
               <template x-if="hasAccess('inputProspek') || hasAccess('dataProspek')">
@@ -249,7 +249,7 @@
           </template>
 
           <!-- ═══════════ DASHBOARD ═══════════ -->
-          <div x-show="page==='dashboard' && hasAccess('dashboard')">
+          <div x-show="page==='dashboard' && hasAccessExact('dashboard')">
             <!-- Filter periode -->
             <div class="flex justify-end mb-2">
               <div class="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 shadow-sm text-xs">
