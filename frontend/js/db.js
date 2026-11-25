@@ -67,15 +67,15 @@ const DB = {
     if (table === 'notifications') {
       if (!Array.isArray(row.read_by)) row.read_by = [];
     }
-    if (table === 'deliveries') {
-      if (typeof row.remarks === 'undefined') row.remarks = '';
-      if (!row.status) row.status = 'delivered';
-    }
     if (table === 'prospects') {
       if (!row.source) row.source = 'internal';
       if (!row.site_no_status) row.site_no_status = 'waiting';
       if (!row.visit_status) row.visit_status = 'not_yet';
       if (typeof row.qty_po === 'undefined') row.qty_po = 0;
+    }
+    if (table === 'deliveries') {
+      if (typeof row.remarks === 'undefined') row.remarks = '';
+      if (!row.status) row.status = 'delivered';
     }
     return row;
   },
@@ -90,4 +90,3 @@ const DB = {
 
 // Ekspos global
 window.DB = DB;
-
