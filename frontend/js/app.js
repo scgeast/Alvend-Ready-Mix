@@ -1,331 +1,427 @@
-// ═══════════════════════════════════════════════════════════════
-// js/app.js — Alpine.js component app()
-// ALVEND Readymix Management
-//
-// ✅ FIX DATABASE: Menyesuaikan nama tabel dengan Supabase
-//    - prospek -> prospects
-//    - activity_logs -> login_logs
-// ✅ FIX EDIT USER: Menambahkan fungsi simpan edit user
-// ═══════════════════════════════════════════════════════════════
+/* =====================================================
+   ALPINE.JS APP — Main application logic
+   -----------------------------------------------------
+   Semua state, computed, dan method Alpine.js ada di sini.
+   Dependencies (sudah di-include sebelum file ini):
+   - js/config.js        → supabaseClient
+   - js/constants.js     → DEVELOPER_DEFAULT_ACCOUNT, DEFAULT_PERMISSIONS, dll
+   - js/db.js            → DB
+   - js/auth.js          → trySupabaseAuth, signOutSupabaseAuth
+   - js/activity-log.js → appendActivityLogAsync, pruneActivityLogsAsync
+   - js/utils.js         → todayISO
+   ===================================================== */
 
 function app() {
   return {
-    // ── State global ──────────────────────────────────────────
+    /* ─────────── STATE ─────────── */
     fatalError: '',
-    currentUser: null,
-    page: 'dashboard',
-    pageTitle: 'Dashboard',
+    isLoading: false,
     sidebarOpen: true,
-    toast: '',
-    toastType: 'success',
-    isRefreshing: false,
-
-    // Login
-    loginForm: { username: '', password: '' },
+    page: 'dashboard',
+    toast: '', toastType: 'success',
     loginError: '',
-    showLoginPw: false,
+    loginForm: { username: '', password: '' },
+    showLoginPw: false, showUserPw: false, showOldPw: false,
+    showNewPw: false, showConfirmPw: false, showEditUserPw: false,
+    pwVisible: {},
+    currentUser: null,
+    users: [], plants: [], mutuList: [], competitors: [], addresses: [],
+    prospects: [], orders: [], deliveries: [], visits: [], propose: [], notifications: [],
+    loginLogs: [],
+    logFilter: { q: '', status: '' },
+    profileForm: { old_password: '', new_password: '', confirm_password: '' },
 
-    // Data master
-    users: [],
-    plants: [],
-    mutuList: [],
-    competitors: [],
-    addresses: [],
-    prospek: [], // Tetap gunakan variabel 'prospek' di frontend, tapi ambil dari tabel 'prospects'
-    orders: [],
-    deliveries: [],
-    logs: [],
-
-    // Filter
     dashFilter: { preset: 'month', start: '', end: '' },
-    pFilter: { q: '', source: '', status: '' },
+
+    /* Prospek */
+    pForm: { project_name: '', address: '', pic_name: '', pic_contact: '', construction_type: '', competitor_id: '', competitor_other: '' },
+    pFilter: { q: '', visit: '', status: '', source: '' },
+
+    /* Order */
+    oForm: { site_no: '', project_name: '', address: '', po_no: '', pic_name: '', pic_contact: '', mutu_id: '', plant_id: '', delivery_date: '', pouring_time: '', qty_order: 0, metode_cor: '', mutu_list: [], plant_list: [] },
     jFilter: { plants: [], status: '', date: '' },
     sFilter: { q: '', plant_id: '', mutu_id: '', status: '' },
-    adFilter: { q: '', plant_id: '', date_from: '', date_to: '', status: '' },
-    psFilter: { q: '', status: '' },
-    logFilter: { q: '', status: '' },
-    mktFilter: { siteSearch: '' },
 
-    // Forms
-    pForm: {},
-    oForm: {},
-    uForm: { assigned_sites: [] },
-    plForm: {},
-    mForm: {},
-    cForm: {},
-    aForm: {},
-    profileForm: { old_password: '', new_password: '', confirm_password: '' },
-    edvForm: {},
-    epForm: {},
-    emForm: {},
-    ecForm: {},
-    eaForm: {},
-    euForm: {},
-    accessForm: { permissions: [] },
-
-    // Modal state
-    editPropModal: { show: false },
-    editPropForm: { mutu: [], plant_ids: [] },
-    accessModal: { show: false, userId: null, userName: '' },
-    orderDetailModal: { show: false, data: null },
-    editDvModal: { show: false },
-    editPlantModal: { show: false },
-    editMutuModal: { show: false },
-    editKompetitorModal: { show: false },
-    editAlamatModal: { show: false },
-    editUserModal: { show: false }, // ✅ Tambahan untuk modal edit user
-    ocModal: { show: false, mode: 'new' },
-
-    // Password visibility
-    showUserPw: false,
-    showOldPw: false,
-    showNewPw: false,
-    showConfirmPw: false,
-    pwVisible: {},
-
-    // Marketing
-    mktSelectedSite: null,
-    mktSuggestions: [],
+    /* Marketing */
+    mktFilter: { site_no: '', siteSearch: '', q: '' },
     mktSuggestOpen: false,
 
-    // Notifikasi
-    unreadNotifCount: 0,
+    /* After Delivery */
+    adFilter: { q: '', plant_id: '', date_from: '', date_to: '', status: '' },
 
-    // ═══════════════════════════════════════════════════════════
-    // MENU REGISTRY
-    // ═══════════════════════════════════════════════════════════
-    allMenus: [
-      { key: 'dashboard',     label: 'Dashboard',         icon: 'fa-solid fa-gauge-high' },
-      { key: 'inputProspek',  label: 'Input Prospek',     icon: 'fa-solid fa-plus-circle' },
-      { key: 'dataProspek',   label: 'Data Prospek',      icon: 'fa-solid fa-list' },
-      { key: 'inputOrder',    label: 'Input Order',       icon: 'fa-solid fa-cart-plus' },
-      { key: 'orderSearch',   label: 'Order Search',      icon: 'fa-solid fa-magnifying-glass' },
-      { key: 'marketing',     label: 'Marketing',         icon: 'fa-solid fa-chart-line' },
-      { key: 'jadwal',        label: 'Jadwal Pengecoran', icon: 'fa-solid fa-calendar-days' },
-      { key: 'afterDelivery', label: 'After Delivery',    icon: 'fa-solid fa-truck-fast' },
-    ],
+    /* Approval Site No */
+    psFilter: { q: '', status: '' },
+
+    /* Modal: Visit */
+    visitModal: { show: false, id: null, project_name: '', current_status: 'not_yet' },
+    vForm: { estimasi_tgl_cor: '', jam_loading: '', mutu_id: '', estimasi_volume: 0, plant_id: '', metode_cor: '', win: false, lost: false },
+
+    /* Modal: Delivery */
+    dvModal: { show: false, order_id: null, site_no: '', remain: 0, order_no: '', order_delivery_date: '' },
+    dvForm: { sj_no: '', delivery_date: '', truck_no: '', qty: 0, driver_name: '' },
+
+    /* Modal: Edit Delivery */
+    editDvModal: { show: false, deliveryId: null, order_no: '', delivery_date: '' },
+    edvForm: { status: 'delivered', remarks: '', sj_no: '', truck_no: '', qty: 0, driver_name: '' },
+
+    /* Modal: Edit Order */
+    editOrderModal: { show: false, data: {} },
+    eoForm: { mutu_id: '', plant_id: '', delivery_date: '', pouring_time: '', qty_order: 0, metode_cor: '', status: '' },
+    orderDetailModal: { show: false, data: null },
+
+    /* Modal: Propose */
+    propModal: { show: false, data: {} },
+    propForm: { site_no: '', po_no: '', qty_po: 0, mutu: [], plant_ids: [] },
+
+    /* Modal: Edit Propose */
+    editPropModal: { show: false, prospectId: null, project_name: '', address: '' },
+    editPropForm: { site_no: '', po_no: '', qty_po: 0, mutu: [], plant_ids: [] },
+
+    /* Modal: Access */
+    accessModal: { show: false, userId: null, userName: '' },
+    accessForm: { permissions: [] },
 
     menuGroups: [
-      { group: 'Utama', items: [ { key: 'dashboard', label: 'Dashboard', icon: 'fa-solid fa-gauge-high' } ]},
+      { group: 'Dashboard', items: [
+        { key: 'dashboard', label: 'Dashboard', icon: 'fa-solid fa-gauge-high' }
+      ]},
       { group: 'Prospek', items: [
         { key: 'inputProspek', label: 'Input Prospek', icon: 'fa-solid fa-plus-circle' },
-        { key: 'dataProspek',  label: 'Data Prospek',  icon: 'fa-solid fa-list' },
+        { key: 'dataProspek', label: 'Data Prospek', icon: 'fa-solid fa-list' }
       ]},
       { group: 'Order', items: [
-        { key: 'inputOrder',  label: 'Input Order',  icon: 'fa-solid fa-cart-plus' },
+        { key: 'inputOrder', label: 'Input Order', icon: 'fa-solid fa-cart-plus' },
         { key: 'orderSearch', label: 'Order Search', icon: 'fa-solid fa-magnifying-glass' },
-        { key: 'marketing',   label: 'Marketing',    icon: 'fa-solid fa-chart-line' },
+        { key: 'marketing', label: 'Marketing', icon: 'fa-solid fa-chart-line' }
       ]},
       { group: 'Pengiriman', items: [
-        { key: 'jadwal',        label: 'Jadwal Pengecoran', icon: 'fa-solid fa-calendar-days' },
-        { key: 'afterDelivery', label: 'After Delivery',    icon: 'fa-solid fa-truck-fast' },
+        { key: 'jadwal', label: 'Jadwal Pengecoran', icon: 'fa-solid fa-calendar-days' },
+        { key: 'afterDelivery', label: 'After Delivery', icon: 'fa-solid fa-truck-fast' }
       ]},
+      { group: 'Owner', items: [
+        { key: 'proposeSiteNo', label: 'Approval Site No', icon: 'fa-solid fa-file-signature' },
+        { key: 'kelolaUser', label: 'Kelola User', icon: 'fa-solid fa-users' },
+        { key: 'kelolaHakAkses', label: 'Kelola Hak Akses', icon: 'fa-solid fa-key' },
+        { key: 'kelolaPlant', label: 'Kelola Plant', icon: 'fa-solid fa-industry' },
+        { key: 'kelolaMutu', label: 'Kelola Mutu', icon: 'fa-solid fa-flask' },
+        { key: 'kelolaKompetitor', label: 'Kelola Kompetitor', icon: 'fa-solid fa-flag' },
+        { key: 'kelolaAlamat', label: 'Kelola Alamat', icon: 'fa-solid fa-map-location-dot' },
+        { key: 'logAktivitas', label: 'Log Aktivitas', icon: 'fa-solid fa-clock-rotate-left' }
+      ]}
     ],
-
-    // ═══════════════════════════════════════════════════════════
-    // HAK AKSES (FIX)
-    // ═══════════════════════════════════════════════════════════
-    hasAccessExact(perm) {
-      if (!this.currentUser) return false;
-      if (this.currentUser.role === 'owner' || this.currentUser.role === 'developer') return true;
-      const perms = this.currentUser.permissions || this.defaultPermsFor(this.currentUser.role) || [];
-      return perms.includes(perm);
+    get allMenus() {
+      return this.menuGroups.flatMap(g => g.items);
     },
 
-    hasAccess(perm) {
-      if (!this.currentUser) return false;
-      if (this.currentUser.role === 'owner' || this.currentUser.role === 'developer') return true;
-      const perms = this.currentUser.permissions || this.defaultPermsFor(this.currentUser.role) || [];
-      if (perm === 'dashboard') {
-        return perms.some(p => this.dashboardGroup.includes(p));
-      }
-      return perms.includes(perm);
-    },
+    /* Modal: One-click Order */
+    ocModal: { show: false, data: null, mode: 'new' },
+    ocForm: { site_no: '', delivery_date: '', pouring_time: '', qty_order: 0, metode_cor: '', note: '' },
+    reqModal: { show: false, data: null },
 
-    get dashboardGroup() {
-      return [
-        'dashboard', 'inputProspek', 'dataProspek', 'inputOrder', 
-        'orderSearch', 'marketing', 'jadwal', 'afterDelivery'
-      ];
-    },
+    /* Form: User */
+    uForm: { username: '', name: '', email: '', password: '', role: '', plant_id: '', assigned_sites: [] },
+    editUserModal: { show: false, userId: null },
+    euForm: { username: '', name: '', email: '', password: '', role: '', plant_id: '', assigned_sites: [], is_active: true, avatar: null },
 
-    nav(page) {
-      if (!this.currentUser) return;
-      if (page === 'dashboard' && !this.hasAccessExact('dashboard')) {
-        const fallback = ['inputProspek', 'dataProspek', 'inputOrder',
-                          'orderSearch', 'marketing', 'jadwal', 'afterDelivery']
-          .find(p => this.hasAccessExact(p));
-        if (fallback) page = fallback;
-      }
-      this.page = page;
-      this.pageTitle = this.titleForPage(page);
-      try { location.hash = 'page=' + page; } catch (e) {}
-    },
+    /* Form: Master data */
+    plForm: { code: '', name: '', address: '', phone: '' },
+    mForm: { code: '', name: '', slump: '', price: 0 },
+    cForm: { name: '', address: '', contact_person: '', phone: '' },
+    aForm: { label: '', address: '', city: '', province: '', type: 'site' },
 
-    titleForPage(page) {
-      const map = {
-        dashboard: 'Dashboard', inputProspek: 'Input Prospek', dataProspek: 'Data Prospek',
-        inputOrder: 'Input Order', orderSearch: 'Order Search', marketing: 'Marketing',
-        jadwal: 'Jadwal Pengecoran', afterDelivery: 'After Delivery', proposeSiteNo: 'Approval Site No',
-        kelolaUser: 'Kelola User', kelolaHakAkses: 'Kelola Hak Akses', kelolaPlant: 'Kelola Plant',
-        kelolaMutu: 'Kelola Mutu', kelolaKompetitor: 'Kelola Kompetitor', kelolaAlamat: 'Kelola Alamat',
-        logAktivitas: 'Log Aktivitas', profil: 'Profil Saya',
-      };
-      return map[page] || 'Dashboard';
-    },
+    /* Modal: Edit Master */
+    editPlantModal: { show: false, id: null }, epForm: { code: '', name: '', address: '', phone: '' },
+    editMutuModal: { show: false, id: null }, emForm: { code: '', name: '', slump: '', price: 0 },
+    editKompetitorModal: { show: false, id: null }, ecForm: { name: '', address: '', contact_person: '', phone: '' },
+    editAlamatModal: { show: false, id: null }, eaForm: { label: '', address: '', city: '', province: '', type: 'site' },
 
-    // ═══════════════════════════════════════════════════════════
-    // INIT & AUTH
-    // ═══════════════════════════════════════════════════════════
+    /* ─────────── INIT ─────────── */
     async init() {
+      this.ensureDeveloperAccount();
       try {
-        if (typeof supabaseClient === 'undefined' || !supabaseClient) {
-          this.fatalError = 'Supabase client tidak terinisialisasi. Cek js/config.js';
-          return;
-        }
-        this.applyDashPreset('month');
-        
+        await this.reload();
+      } catch (e) {
+        this.fatalError = 'Gagal terhubung ke Supabase: ' + (e?.message || e);
+        return;
+      }
+      this.normalizeData();
+      const saved = localStorage.getItem('beton_current');
+      if (saved) {
         try {
-          const { data: sess } = await supabaseClient.auth.getSession();
-          if (sess && sess.session) {
-            const email = sess.session.user?.email;
-            if (email) {
-              const { data: rows } = await supabaseClient.from('users').select('*').eq('email', email).limit(1);
-              if (rows && rows.length) {
-                this.currentUser = rows[0];
-                await this.refreshData();
-                this.nav(this.page);
-                return;
-              }
+          const parsed = JSON.parse(saved);
+          const devAccount = this.getDeveloperAccount();
+          let found = null;
+          // ─── Restore session developer ───
+          if (parsed.role === 'developer') {
+            const savedUsername = String(parsed.username || '').toLowerCase();
+            const savedEmail    = String(parsed.email || '').toLowerCase();
+            const isDev = savedUsername === String(devAccount.username).toLowerCase()
+                       || savedEmail === String(devAccount.email || '').toLowerCase()
+                       || savedUsername === 'developer';
+            if (isDev) {
+              found = devAccount;
+              localStorage.setItem('beton_current', JSON.stringify(devAccount));
             }
+          } else {
+            found = this.users.find(u => u.username && String(u.username).toLowerCase() === String(parsed.username).toLowerCase());
           }
-        } catch (e) { console.warn('auth session check', e); }
+          if (found) {
+            this.currentUser = found;
+            if (found.role === 'customer') this.page = 'jadwal';
+            const requestedPage = (location.hash.match(/(?:^#|&)page=([^&]+)/) || [])[1];
+            if (requestedPage) {
+              const targetPage = decodeURIComponent(requestedPage);
+              if (found.role === 'owner' || found.role === 'developer' || this.hasAccess(targetPage)) this.page = targetPage;
+            }
+          } else localStorage.removeItem('beton_current');
+        } catch (e) { localStorage.removeItem('beton_current'); }
+      }
+      this.adFilter.date_from = todayISO();
+      this.adFilter.date_to = todayISO();
+      this.jFilter.date = todayISO();
+      this.applyDashPreset('month');
+    },
 
-        const m = (location.hash || '').match(/page=([a-zA-Z0-9_]+)/);
-        if (m && m[1]) this.nav(m[1]);
-      } catch (e) {
-        console.error(e);
-        this.fatalError = e.message || String(e);
+    /* ─────────── DASHBOARD FILTER ─────────── */
+    applyDashPreset(preset) {
+      this.dashFilter.preset = preset;
+      const today = todayISO();
+      if (preset === 'today') {
+        this.dashFilter.start = today;
+        this.dashFilter.end = today;
+      } else if (preset === 'week') {
+        const d = new Date(); d.setDate(d.getDate() - 6);
+        this.dashFilter.start = d.toISOString().slice(0, 10);
+        this.dashFilter.end = today;
+      } else if (preset === 'month') {
+        const d = new Date(); d.setDate(d.getDate() - 29);
+        this.dashFilter.start = d.toISOString().slice(0, 10);
+        this.dashFilter.end = today;
       }
     },
+    onDashDateChange() { this.dashFilter.preset = 'custom'; },
+    inDashRange(dateStr) {
+      if (!dateStr) return false;
+      const d = String(dateStr).slice(0, 10);
+      const s = this.dashFilter.start || '';
+      const e = this.dashFilter.end || '';
+      if (s && d < s) return false;
+      if (e && d > e) return false;
+      return true;
+    },
 
-    async login() {
-      this.loginError = '';
-      try {
-        const username = (this.loginForm.username || '').trim();
-        const password = this.loginForm.password || '';
-        if (!username || !password) {
-          this.loginError = 'User ID dan password wajib diisi';
-          return;
-        }
+    get dashOrderList() {
+      const u = this.currentUser;
+      let list = this.orders.filter(o => this.inDashRange(o.delivery_date) && o.status !== 'cancelled');
+      if (u?.role === 'sales') list = list.filter(o => Number(o.sales_id) === Number(u.id));
+      return list;
+    },
 
-        // Developer default account (offline)
-        if (typeof DEVELOPER_DEFAULT_ACCOUNT !== 'undefined'
-            && username === DEVELOPER_DEFAULT_ACCOUNT.username
-            && password === DEVELOPER_DEFAULT_ACCOUNT.password) {
-          this.currentUser = {
-            id: 'developer', username: DEVELOPER_DEFAULT_ACCOUNT.username,
-            name: DEVELOPER_DEFAULT_ACCOUNT.name, role: 'developer', email: '',
-            permissions: this.allMenus.map(m => m.key), is_active: true,
-          };
-          await this.refreshData();
-          this.nav('dashboard');
-          if (typeof appendActivityLogAsync === 'function') appendActivityLogAsync({ activity: 'Login developer', status: 'success' });
-          return;
-        }
+    get dashStats() {
+      const u = this.currentUser;
+      const orders = this.dashOrderList;
+      const orderIds = orders.map(o => Number(o.id));
+      const delivs = this.deliveries.filter(d =>
+        (d.status || 'delivered') === 'delivered' && orderIds.includes(Number(d.order_id))
+      );
+      const prospeks = this.prospects.filter(p => {
+        if (!this.inDashRange(p.created_at)) return false;
+        if (u?.role === 'sales' && Number(p.sales_id) !== Number(u.id)) return false;
+        return true;
+      });
+      return {
+        totalProspek: prospeks.length,
+        repeatOrder: prospeks.filter(p => p.source === 'customer_repeat').length,
+        complete: prospeks.filter(p => p.site_no_status === 'complete').length,
+        totalOrder: orders.length,
+        qtyOrder: orders.reduce((s, o) => s + (+o.qty_order || 0), 0),
+        qtyDelivered: delivs.reduce((s, d) => s + (+d.qty || 0), 0),
+      };
+    },
 
-        // Cek user di tabel users
-        const { data: rows, error } = await supabaseClient
-          .from('users')
-          .select('*')
-          .or(`username.eq.${username},email.eq.${username}`)
-          .limit(1);
+    get dashDeliveryRate() {
+      const s = this.dashStats;
+      if (!s.qtyOrder) return 0;
+      return Math.min(100, (s.qtyDelivered / s.qtyOrder) * 100);
+    },
 
-        if (error) throw error;
-        if (!rows || !rows.length) {
-          this.loginError = 'User tidak ditemukan';
-          if (typeof appendActivityLogAsync === 'function') appendActivityLogAsync({ activity: `Login gagal: user ${username} tidak ditemukan`, status: 'failed' });
-          return;
-        }
+    get dashRepeatOrderRate() {
+      const orders = this.dashOrderList;
+      if (!orders.length) return 0;
+      let repeat = 0;
+      orders.forEach(o => {
+        const p = this.prospects.find(pr => Number(pr.id) === Number(o.prospect_id));
+        if (p && p.source === 'customer_repeat') repeat++;
+      });
+      return (repeat / orders.length) * 100;
+    },
 
-        const u = rows[0];
-        if (u.is_active === false) {
-          this.loginError = 'Akun Anda dinonaktifkan. Hubungi owner.';
-          if (typeof appendActivityLogAsync === 'function') appendActivityLogAsync({ activity: `Login gagal: akun ${username} nonaktif`, status: 'inactive' });
-          return;
-        }
-        if (u.password !== password) {
-          this.loginError = 'Password salah';
-          if (typeof appendActivityLogAsync === 'function') appendActivityLogAsync({ activity: `Login gagal: password salah untuk ${username}`, status: 'failed' });
-          return;
-        }
+    get dashConversionRate() {
+      const s = this.dashStats;
+      if (!s.totalProspek) return 0;
+      return Math.min(100, (s.totalOrder / s.totalProspek) * 100);
+    },
 
-        this.currentUser = u;
-        await this.refreshData();
-        this.nav('dashboard');
-        if (typeof appendActivityLogAsync === 'function') appendActivityLogAsync({ activity: `Login berhasil sebagai ${u.role}`, status: 'success' });
-      } catch (e) {
-        console.error(e);
-        this.loginError = e.message || String(e);
+    get dashTrendDaily() {
+      const s = this.dashFilter.start;
+      const e = this.dashFilter.end;
+      if (!s || !e) return [];
+      const start = new Date(s + 'T00:00:00');
+      const end = new Date(e + 'T00:00:00');
+      const days = [];
+      const cur = new Date(start);
+      let safety = 0;
+      while (cur <= end && safety < 90) {
+        const dStr = cur.toISOString().slice(0, 10);
+        days.push({ date: dStr, label: dStr.slice(5), orderQty: 0, delivQty: 0 });
+        cur.setDate(cur.getDate() + 1);
+        safety++;
       }
+      const u = this.currentUser;
+      const orders = this.orders.filter(o => o.status !== 'cancelled');
+      const delivs = this.deliveries.filter(d => (d.status || 'delivered') === 'delivered');
+      const myOrderIds = (u?.role === 'sales')
+        ? orders.filter(o => Number(o.sales_id) === Number(u.id)).map(o => Number(o.id))
+        : null;
+      orders.forEach(o => {
+        if (myOrderIds && !myOrderIds.includes(Number(o.id))) return;
+        const rec = days.find(x => x.date === o.delivery_date);
+        if (rec) rec.orderQty += +o.qty_order || 0;
+      });
+      delivs.forEach(d => {
+        if (myOrderIds && !myOrderIds.includes(Number(d.order_id))) return;
+        const rec = days.find(x => x.date === d.delivery_date);
+        if (rec) rec.delivQty += +d.qty || 0;
+      });
+      return days;
     },
 
-    async logout() {
-      try {
-        if (typeof signOutSupabaseAuth === 'function') await signOutSupabaseAuth();
-      } catch (e) { /* ignore */ }
-      this.currentUser = null;
-      this.loginForm = { username: '', password: '' };
-      this.page = 'dashboard';
-      this.pageTitle = 'Dashboard';
+    get dashTrendMax() {
+      return Math.max(1, ...this.dashTrendDaily.flatMap(d => [d.orderQty, d.delivQty]));
     },
 
-    defaultPermsFor(role) {
-      switch (role) {
-        case 'owner': case 'developer': return this.allMenus.map(m => m.key);
-        case 'admin': return ['dashboard','inputProspek','dataProspek','inputOrder','orderSearch','marketing','jadwal','afterDelivery'];
-        case 'sales': return ['dashboard','inputProspek','dataProspek','inputOrder','orderSearch','marketing','jadwal'];
-        case 'logistik': return ['dashboard','jadwal','afterDelivery'];
-        case 'customer': return ['jadwal'];
-        default: return [];
-      }
+    get dashWeeklyData() {
+      const days = this.dashTrendDaily;
+      if (!days.length) return [];
+      const weeks = [];
+      let chunk = null;
+      days.forEach((d, i) => {
+        if (i % 7 === 0) {
+          chunk = { label: 'W' + (weeks.length + 1), startDate: d.date, prospek: 0, order: 0 };
+          weeks.push(chunk);
+        }
+        chunk.order += d.orderQty;
+      });
+      const u = this.currentUser;
+      this.prospects.forEach(p => {
+        if (u?.role === 'sales' && Number(p.sales_id) !== Number(u.id)) return;
+        if (!p.created_at) return;
+        const pDate = p.created_at.slice(0, 10);
+        for (let i = 0; i < weeks.length; i++) {
+          const startD = weeks[i].startDate;
+          const nextStart = weeks[i + 1]?.startDate;
+          if (pDate >= startD && (!nextStart || pDate < nextStart)) {
+            weeks[i].prospek++;
+            break;
+          }
+        }
+      });
+      return weeks;
     },
 
+    get dashWeeklyMaxProspek() { return Math.max(1, ...this.dashWeeklyData.map(w => w.prospek)); },
+    get dashWeeklyMaxOrder()   { return Math.max(1, ...this.dashWeeklyData.map(w => w.order)); },
+
+    get dashStatusBreakdown() {
+      const u = this.currentUser;
+      let allOrders = this.orders.filter(o => this.inDashRange(o.delivery_date));
+      if (u?.role === 'sales') allOrders = allOrders.filter(o => Number(o.sales_id) === Number(u.id));
+      let open = 0, partial = 0, completed = 0, cancelled = 0;
+      allOrders.forEach(o => {
+        if (o.status === 'cancelled') cancelled++;
+        else if (o.status === 'completed') completed++;
+        else if (o.status === 'partial') partial++;
+        else open++;
+      });
+      return { open, partial, completed, cancelled, total: allOrders.length };
+    },
+
+    get dashDonutStyle() {
+      const s = this.dashStatusBreakdown;
+      const t = s.total;
+      if (!t) return { background: '#e2e8f0' };
+      const o = (s.open / t) * 100;
+      const p = (s.partial / t) * 100;
+      const c = (s.completed / t) * 100;
+      const x = (s.cancelled / t) * 100;
+      let acc = 0;
+      const stops = [];
+      if (o > 0) { stops.push(`#3b82f6 ${acc}% ${acc + o}%`); acc += o; }
+      if (p > 0) { stops.push(`#f59e0b ${acc}% ${acc + p}%`); acc += p; }
+      if (c > 0) { stops.push(`#10b981 ${acc}% ${acc + c}%`); acc += c; }
+      if (x > 0) { stops.push(`#ef4444 ${acc}% ${acc + x}%`); acc += x; }
+      return { background: stops.length ? `conic-gradient(${stops.join(', ')})` : '#e2e8f0' };
+    },
+
+    get dashRecentOrders() {
+      return this.dashOrderList.slice().sort((a, b) => b.id - a.id).slice(0, 8);
+    },
+
+    get dashIncompleteSites() {
+      const result = [];
+      this.prospects
+        .filter(p => p.site_no && ['complete', 'held'].includes(p.site_no_status || ''))
+        .forEach(p => {
+          const qty_po = Number(p.qty_po) || 0;
+          if (qty_po <= 0) return;
+          const orders = this.orders.filter(o => o.site_no === p.site_no && o.status !== 'cancelled');
+          const ordered = orders.reduce((s, o) => s + (+o.qty_order || 0), 0);
+          const remain = qty_po - ordered;
+          if (remain > 0.01) result.push({ ...p, ordered, remain, qty_po });
+        });
+      return result.sort((a, b) => b.remain - a.remain).slice(0, 8);
+    },
+
+    /* ─────────── DEVELOPER ACCOUNT ─────────── */
+    ensureDeveloperAccount() {
+      // Cleanup legacy localStorage keys dari versi sebelumnya.
+      DEVELOPER_ACCOUNT_LEGACY_KEYS.forEach(key => {
+        if (localStorage.getItem(key)) {
+          try { localStorage.removeItem(key); } catch (_) {}
+        }
+      });
+    },
+    getDeveloperAccount() {
+      // Selalu kembalikan kredensial terbaru dari kode JS (in-memory).
+      return { ...DEVELOPER_DEFAULT_ACCOUNT };
+    },
     isOwnerOrDeveloper() {
-      return this.currentUser && (this.currentUser.role === 'owner' || this.currentUser.role === 'developer');
+      return !!this.currentUser && ['owner', 'developer'].includes(this.currentUser.role);
     },
 
-    // ═══════════════════════════════════════════════════════════
-    // HAK AKSES MODAL
-    // ═══════════════════════════════════════════════════════════
-    async saveAccess() {
-      try {
-        const user = this.users.find(u => u.id === this.accessModal.userId);
-        if (!user) { this.toast = 'User tidak ditemukan'; this.toastType = 'error'; return; }
-        const perms = [...new Set(this.accessForm.permissions.filter(Boolean))];
-        const { error } = await supabaseClient.from('users').update({ permissions: perms }).eq('id', user.id);
-        if (error) throw error;
-        
-        user.permissions = perms;
-        if (typeof appendActivityLogAsync === 'function') {
-          appendActivityLogAsync({ activity: `Ubah hak akses user ${user.username || user.name}: ${perms.join(', ') || '(kosong)'}`, status: 'success' });
-        }
-        this.toast = 'Hak akses berhasil disimpan';
-        this.toastType = 'success';
-        this.accessModal.show = false;
-        await this.refreshData();
-      } catch (err) {
-        console.error(err);
-        this.toast = 'Gagal menyimpan hak akses: ' + (err.message || err);
-        this.toastType = 'error';
-      }
+    /* ─────────── PERMISSIONS ─────────── */
+    defaultPermsFor(role) { return DEFAULT_PERMISSIONS[role] || []; },
+    menuLabel(key) {
+      const m = this.allMenus.find(x => x.key === key);
+      return m ? m.label : key;
+    },
+    hasAccess(menuKey) {
+      const u = this.currentUser;
+      if (!u) return false;
+      if (u.role === 'owner' || u.role === 'developer') return true;
+      const perms = Array.isArray(u.permissions) && u.permissions.length > 0
+                    ? u.permissions
+                    : this.defaultPermsFor(u.role);
+      return perms.includes(menuKey);
     },
 
     openAccessModal(u) {
       this.accessModal = { show: true, userId: u.id, userName: u.name };
-      this.accessForm.permissions = [...(u.permissions || this.defaultPermsFor(u.role) || [])];
+      const current = Array.isArray(u.permissions) && u.permissions.length > 0
+                      ? [...u.permissions]
+                      : this.defaultPermsFor(u.role).slice();
+      this.accessForm = { permissions: current };
     },
-
     toggleAllAccess() {
       if (this.accessForm.permissions.length === this.allMenus.length) {
         this.accessForm.permissions = [];
@@ -333,573 +429,1366 @@ function app() {
         this.accessForm.permissions = this.allMenus.map(m => m.key);
       }
     },
-
-    menuLabel(key) {
-      const m = this.allMenus.find(x => x.key === key);
-      return m ? m.label : key;
+    async saveAccess() {
+      try {
+        await DB.update('users', this.accessModal.userId, { permissions: [...this.accessForm.permissions] });
+        await this.reload();
+        if (Number(this.accessModal.userId) === Number(this.currentUser.id)) {
+          const updated = this.users.find(u => Number(u.id) === Number(this.accessModal.userId));
+          if (updated) {
+            this.currentUser = updated;
+            localStorage.setItem('beton_current', JSON.stringify(updated));
+          }
+        }
+        this.accessModal.show = false;
+        this.toastMsg('Hak akses untuk ' + this.accessModal.userName + ' disimpan');
+      } catch (e) { this.toastMsg('Gagal simpan hak akses: ' + (e?.message || e), 'error'); }
     },
 
-    // ═══════════════════════════════════════════════════════════
-    // REFRESH DATA
-    // ═══════════════════════════════════════════════════════════
     async refreshData() {
-      if (this.isRefreshing) return;
-      this.isRefreshing = true;
-      
       try {
-        const [usersRes, plantsRes, mutuRes, compRes, addrRes, prospRes, ordRes, delivRes, logRes] =
-          await Promise.all([
-            supabaseClient.from('users').select('*').order('name'),
-            supabaseClient.from('plants').select('*').order('name'),
-            supabaseClient.from('mutu').select('*').order('code'),
-            supabaseClient.from('competitors').select('*').order('name'),
-            supabaseClient.from('addresses').select('*').order('label'),
-            // ✅ FIX: prospects (pakai s)
-            supabaseClient.from('prospects').select('*').order('created_at', { ascending: false }),
-            supabaseClient.from('orders').select('*').order('delivery_date', { ascending: false }),
-            supabaseClient.from('deliveries').select('*').order('delivery_date', { ascending: false }),
-            // ✅ FIX: login_logs
-            supabaseClient.from('login_logs').select('*').order('login_at', { ascending: false }).limit(500),
-          ]);
+        await this.reload();
+        this.toastMsg('Data berhasil di-refresh');
+      } catch (e) { this.toastMsg('Refresh gagal: ' + (e?.message || e), 'error'); }
+    },
 
-        this.users = usersRes.data || [];
-        this.plants = plantsRes.data || [];
-        this.mutuList = mutuRes.data || [];
-        this.competitors = compRes.data || [];
-        this.addresses = addrRes.data || [];
-        this.prospek = prospRes.data || [];
-        this.orders = ordRes.data || [];
-        this.deliveries = delivRes.data || [];
-        this.logs = logRes.data || [];
+    /* ─────────── RELOAD DATA ─────────── */
+    async reload() {
+      const [users, plants, mutuList, competitors, addresses, prospects, orders, deliveries, visits, propose, notifications] = await Promise.all([
+        DB.all('users'),
+        DB.all('plants'),
+        DB.all('mutu'),
+        DB.all('competitors'),
+        DB.all('addresses'),
+        DB.all('prospects'),
+        DB.all('orders'),
+        DB.all('deliveries'),
+        DB.all('visits'),
+        DB.all('propose'),
+        DB.all('notifications')
+      ]);
+      this.users = users; this.plants = plants; this.mutuList = mutuList;
+      this.competitors = competitors; this.addresses = addresses;
+      this.prospects = prospects; this.orders = orders; this.deliveries = deliveries;
+      this.visits = visits; this.propose = propose; this.notifications = notifications;
+      this.loginLogs = await pruneActivityLogsAsync();
+    },
 
-        if (this.hasAccess('dataProspek')) {
-          this.unreadNotifCount = this.prospek.filter(p => (p.source === 'customer_repeat') && !p.sales_id).length;
-        } else {
-          this.unreadNotifCount = 0;
-        }
+    normalizeData() {
+      // Normalize sudah di-handle di DB._normalize saat fetch dari Supabase.
+      // Method ini dipertahankan untuk kompatibilitas tapi tidak melakukan apa-apa.
+    },
 
-        if (this.currentUser && this.currentUser.id !== 'developer') {
-          const fresh = this.users.find(u => u.id === this.currentUser.id);
-          if (fresh) this.currentUser = fresh;
-        }
-
-        this.toast = 'Data berhasil diperbarui!';
-        this.toastType = 'success';
-        setTimeout(() => { this.toast = ''; }, 3000);
-
-      } catch (e) {
-        console.error('refreshData', e);
-        this.toast = 'Gagal memuat data: ' + (e.message || e);
-        this.toastType = 'error';
-      } finally {
-        this.isRefreshing = false;
+    /* ─────────── UTILS ─────────── */
+    fmt(n) { return (Number(n) || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
+    nowStr() { return new Date().toLocaleString('id-ID'); },
+    fmtDate(s) {
+      if (!s) return '-';
+      const d = new Date(s);
+      return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    },
+    toastMsg(m, type = 'success') {
+      this.toast = m; this.toastType = type;
+      setTimeout(() => this.toast = '', 3000);
+    },
+    async nav(page) {
+      const previousPage = this.page;
+      this.page = page;
+      this.toast = '';
+      if (this.currentUser && page !== previousPage) {
+        await appendActivityLogAsync(this.currentUser, 'Membuka menu: ' + (this.pageTitle || page));
+        this.loginLogs = await pruneActivityLogsAsync();
       }
     },
-    
-    // ═══════════════════════════════════════════════════════════
-    // HELPERS
-    // ═══════════════════════════════════════════════════════════
-    roleBadge(role) {
-      const map = { owner: 'bg-purple-100 text-purple-700', developer: 'bg-indigo-100 text-indigo-700', admin: 'bg-blue-100 text-blue-700', sales: 'bg-emerald-100 text-emerald-700', logistik: 'bg-amber-100 text-amber-700', customer: 'bg-slate-100 text-slate-700' };
-      return map[role] || 'bg-slate-100 text-slate-700';
-    },
-    statusBadge(status) {
-      const map = { scheduled: 'bg-blue-100 text-blue-700', partial: 'bg-amber-100 text-amber-700', completed: 'bg-emerald-100 text-emerald-700', cancelled: 'bg-red-100 text-red-700' };
-      return map[status] || 'bg-slate-100 text-slate-700';
-    },
-    fmt(n) { return (Number(n) || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 }); },
-    fmtDate(d) {
-      if (!d) return '-';
-      try { return new Date(d).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { return d; }
-    },
-    mutuCode(id) { const m = this.mutuList.find(x => Number(x.id) === Number(id)); return m ? m.code : '-'; },
-    plantName(id) { const p = this.plants.find(x => Number(x.id) === Number(id)); return p ? p.name : '-'; },
-    salesName(id) { const u = this.users.find(x => x.id === id); return u ? u.name : '-'; },
-    orderById(id) { return this.orders.find(o => Number(o.id) === Number(id)); },
-    hasDelivery(orderId) { return this.deliveries.some(d => Number(d.order_id) === Number(orderId) && (d.status || 'delivered') === 'delivered'); },
-    isOrderFinished(o) { return o && (o.status === 'completed' || o.status === 'cancelled' || (Number(o.qty_remain) <= 0)); },
 
-    // ═══════════════════════════════════════════════════════════
-    // DASHBOARD
-    // ═══════════════════════════════════════════════════════════
-    applyDashPreset(preset) {
-      const today = new Date(); const iso = (d) => d.toISOString().slice(0, 10);
-      if (preset === 'today') { this.dashFilter.start = iso(today); this.dashFilter.end = iso(today); }
-      else if (preset === 'week') { const s = new Date(today); s.setDate(s.getDate() - 6); this.dashFilter.start = iso(s); this.dashFilter.end = iso(today); }
-      else if (preset === 'month') { const s = new Date(today); s.setDate(s.getDate() - 29); this.dashFilter.start = iso(s); this.dashFilter.end = iso(today); }
-    },
-    onDashDateChange() { this.dashFilter.preset = 'custom'; },
-    get _dashRange() { return { start: this.dashFilter.start, end: this.dashFilter.end }; },
-    get _dashOrdersInRange() {
-      const { start, end } = this._dashRange;
-      return this.orders.filter(o => (!start || o.delivery_date >= start) && (!end || o.delivery_date <= end));
-    },
-    get _dashDeliveriesInRange() {
-      const { start, end } = this._dashRange;
-      return this.deliveries.filter(d => (d.status || 'delivered') === 'delivered' && (!start || d.delivery_date >= start) && (!end || d.delivery_date <= end));
-    },
-    get dashStats() {
-      const ords = this._dashOrdersInRange;
-      const delivs = this._dashDeliveriesInRange;
-      const { start, end } = this._dashRange;
-      const pros = this.prospek.filter(p => {
-        const d = (p.created_at || '').slice(0, 10);
-        return (!start || d >= start) && (!end || d <= end);
-      });
+    /* ─────────── LOOKUPS ─────────── */
+    salesName(id)  { return this.users.find(u => Number(u.id) === Number(id))?.name || '-'; },
+    plantName(id)  { return this.plants.find(p => Number(p.id) === Number(id))?.name || '-'; },
+    mutuCode(id)   { return this.mutuList.find(m => Number(m.id) === Number(id))?.code || '-'; },
+    orderById(id)  { return this.orders.find(o => Number(o.id) === Number(id)); },
+    hasDelivery(orderId) { return this.deliveries.some(d => Number(d.order_id) === Number(orderId)); },
+
+    statusBadge(s) {
       return {
-        totalProspek: pros.length,
-        repeatOrder: pros.filter(p => (p.source || 'internal') === 'customer_repeat').length,
-        complete: pros.filter(p => p.site_no_status === 'complete').length,
-        totalOrder: ords.length,
-        qtyOrder: ords.reduce((a, o) => a + (Number(o.qty_order) || 0), 0),
-        qtyDelivered: delivs.reduce((a, d) => a + (Number(d.qty) || 0), 0),
+        pending: 'bg-slate-100 text-slate-700', scheduled: 'bg-blue-100 text-blue-700',
+        partial: 'bg-yellow-100 text-yellow-700', completed: 'bg-emerald-100 text-emerald-700',
+        cancelled: 'bg-red-100 text-red-700 line-through',
+      }[s] || 'bg-slate-100';
+    },
+    roleBadge(r) {
+      return {
+        owner: 'bg-purple-100 text-purple-700', admin: 'bg-blue-100 text-blue-700',
+        sales: 'bg-emerald-100 text-emerald-700', logistik: 'bg-yellow-100 text-yellow-700',
+        customer: 'bg-orange-100 text-orange-700',
+      }[r] || 'bg-slate-100 text-slate-700';
+    },
+
+    get isCustomer() { return this.currentUser?.role === 'customer'; },
+    get unreadNotifCount() {
+      if (!this.currentUser || this.currentUser.role === 'customer') return 0;
+      return this.notifications.filter(n => !(n.read_by || []).includes(this.currentUser.id)).length;
+    },
+    get accessibleSites() {
+      const u = this.currentUser;
+      if (!u) return [];
+      if (u.role === 'owner' || u.role === 'admin') return null;
+      if (u.role === 'customer') return u.assigned_sites || [];
+      if (u.role === 'sales') return this.prospects.filter(p => Number(p.sales_id) === Number(u.id)).map(p => p.site_no).filter(Boolean);
+      return [];
+    },
+    get pageTitle() {
+      return {
+        dashboard: 'Dashboard', inputProspek: 'Input Prospek Project', dataProspek: 'Data Project Prospek',
+        inputOrder: 'Input Order', jadwal: 'Jadwal Pengecoran', orderSearch: 'Order Search',
+        marketing: 'Marketing — Site No Detail',
+        afterDelivery: 'After Delivery Report', proposeSiteNo: 'Approval Site No',
+        kelolaUser: 'Kelola User', kelolaHakAkses: 'Kelola Hak Akses',
+        kelolaPlant: 'Kelola Plant', kelolaMutu: 'Kelola Mutu',
+        kelolaKompetitor: 'Kelola Kompetitor', kelolaAlamat: 'Kelola Alamat',
+        profil: 'Profil Saya', logAktivitas: 'Log Aktivitas User',
+      }[this.page] || '';
+    },
+    get filteredLogs() {
+      let list = (this.loginLogs || []).slice();
+      if (this.logFilter.q) {
+        const q = this.logFilter.q.toLowerCase();
+        list = list.filter(l => (l.username || '').toLowerCase().includes(q) || (l.name || '').toLowerCase().includes(q));
+      }
+      if (this.logFilter.status) list = list.filter(l => l.status === this.logFilter.status);
+      return list;
+    },
+    get filteredProposals() {
+      return this.prospects
+        .filter(p => ['propose_site_no', 'complete', 'held'].includes(p.site_no_status || ''))
+        .map(p => {
+          const pr = this.propose.find(x => Number(x.prospect_id) === Number(p.id));
+          const v = this.visits.find(x => Number(x.prospect_id) === Number(p.id));
+          const mutuDiminta = (v && v.mutu_id) ? this.mutuList.find(m => Number(m.id) === Number(v.mutu_id)) : null;
+          return {
+            ...p,
+            propose_date: pr?.created_at || p.visit_done_at || p.created_at,
+            visit_mutu_id: v?.mutu_id || null,
+            visit_mutu_code: mutuDiminta?.code || null,
+            visit_mutu_name: mutuDiminta?.name || null,
+            visit_estimasi_volume: v?.estimasi_volume || 0,
+          };
+        })
+        .filter(p => {
+          if (this.psFilter.status && p.site_no_status !== this.psFilter.status) return false;
+          if (this.psFilter.q) {
+            const q = this.psFilter.q.toLowerCase();
+            return (p.project_name || '').toLowerCase().includes(q)
+                || (p.site_no || '').toLowerCase().includes(q)
+                || (p.pic_name || '').toLowerCase().includes(q)
+                || (p.visit_mutu_code || '').toLowerCase().includes(q);
+          }
+          return true;
+        })
+        .sort((a, b) => b.id - a.id);
+    },
+
+    resetJadwalFilter() { this.jFilter = { plants: [], status: '', date: todayISO() }; },
+    resetAdFilter()    { this.adFilter = { q: '', date_from: todayISO(), date_to: todayISO(), status: '' }; },
+
+    /* ─────────── LOGIN ─────────── */
+    async login() {
+      const uid = (this.loginForm.username || '').trim().toLowerCase();
+      if (!uid) { this.loginError = 'User ID wajib diisi'; return; }
+      const developer = this.getDeveloperAccount();
+      const isDeveloperLogin = (uid === String(developer.username).toLowerCase())
+                            || (developer.email && uid === String(developer.email).toLowerCase());
+
+      if (isDeveloperLogin) {
+        if (String(developer.password) !== String(this.loginForm.password)) {
+          this.loginError = 'Password salah'; return;
+        }
+        if (developer.is_active === false) { this.loginError = 'Akun Developer nonaktif'; return; }
+        if (developer.email && developer.email.includes('@')) {
+          await trySupabaseAuth(developer.email, this.loginForm.password);
+        }
+        this.currentUser = { ...developer };
+        localStorage.setItem('beton_current', JSON.stringify(this.currentUser));
+        this.loginError = '';
+        this.loginForm = { username: '', password: '' };
+        await this.nav('dashboard');
+        this.toastMsg('Login Developer berhasil');
+        return;
+      }
+
+      const u = this.users.find(x => (x.username && String(x.username).toLowerCase() === uid) || (x.email && String(x.email).toLowerCase() === uid));
+      if (!u) { this.loginError = 'User ID tidak ditemukan. Pastikan akun sudah dibuat oleh Owner.'; await this.recordLogin(null, uid, 'failed'); return; }
+      if (String(u.password) !== String(this.loginForm.password)) { this.loginError = 'Password salah'; await this.recordLogin(u, uid, 'failed'); return; }
+      if (u.is_active === false) { this.loginError = 'Akun Anda dinonaktifkan. Hubungi owner.'; await this.recordLogin(u, uid, 'inactive'); return; }
+      this.currentUser = u;
+      localStorage.setItem('beton_current', JSON.stringify(u));
+      this.loginError = '';
+      this.loginForm = { username: '', password: '' };
+      await this.recordLogin(u, uid, 'success');
+      let defaultPage = 'dashboard';
+      if (!this.hasAccess('dashboard')) {
+        if (this.hasAccess('jadwal')) defaultPage = 'jadwal';
+        else if (this.hasAccess('inputProspek')) defaultPage = 'inputProspek';
+        else if (this.hasAccess('dataProspek')) defaultPage = 'dataProspek';
+        else if (this.hasAccess('inputOrder')) defaultPage = 'inputOrder';
+        else if (this.hasAccess('orderSearch')) defaultPage = 'orderSearch';
+        else if (this.hasAccess('marketing')) defaultPage = 'marketing';
+        else if (this.hasAccess('afterDelivery')) defaultPage = 'afterDelivery';
+      }
+      const requestedPage = (location.hash.match(/(?:^#|&)page=([^&]+)/) || [])[1];
+      if (requestedPage) {
+        const targetPage = decodeURIComponent(requestedPage);
+        if (u.role === 'owner' || u.role === 'developer' || this.hasAccess(targetPage)) defaultPage = targetPage;
+      }
+      await this.nav(defaultPage);
+      this.toastMsg('Selamat datang, ' + u.name);
+    },
+
+    async recordLogin(user, uidInput, status) {
+      const activity = status === 'success' ? 'Login berhasil' :
+        status === 'inactive' ? 'Percobaan login ditolak — akun nonaktif' :
+        'Percobaan login gagal';
+      await appendActivityLogAsync(user, activity, status, uidInput);
+      this.loginLogs = await pruneActivityLogsAsync();
+    },
+
+    /* ─────────── PROFILE ─────────── */
+    uploadAvatar(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      if (file.size > 500 * 1024) { this.toastMsg('File terlalu besar. Maks 500 KB.', 'error'); event.target.value = ''; return; }
+      if (!file.type.startsWith('image/')) { this.toastMsg('File harus berupa gambar.', 'error'); event.target.value = ''; return; }
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          await DB.update('users', this.currentUser.id, { avatar: e.target.result });
+          await this.reload();
+          const updated = this.users.find(u => Number(u.id) === Number(this.currentUser.id));
+          if (updated) {
+            this.currentUser = updated;
+            localStorage.setItem('beton_current', JSON.stringify(updated));
+          }
+          this.toastMsg('Foto profil berhasil diupdate');
+        } catch (err) { this.toastMsg('Gagal update avatar: ' + (err?.message || err), 'error'); }
+      };
+      reader.readAsDataURL(file);
+      event.target.value = '';
+    },
+
+    async removeAvatar() {
+      if (!confirm('Hapus foto profil?')) return;
+      try {
+        await DB.update('users', this.currentUser.id, { avatar: null });
+        await this.reload();
+        const updated = this.users.find(u => Number(u.id) === Number(this.currentUser.id));
+        if (updated) {
+          this.currentUser = updated;
+          localStorage.setItem('beton_current', JSON.stringify(updated));
+        }
+        this.toastMsg('Foto profil dihapus');
+      } catch (e) { this.toastMsg('Gagal hapus avatar: ' + (e?.message || e), 'error'); }
+    },
+
+    async changeMyPassword() {
+      if (this.profileForm.new_password !== this.profileForm.confirm_password) { this.toastMsg('Konfirmasi password tidak sama', 'error'); return; }
+      if ((this.profileForm.new_password || '').length < 6) { this.toastMsg('Password minimal 6 karakter', 'error'); return; }
+      if (this.profileForm.old_password !== this.currentUser.password) { this.toastMsg('Password lama salah', 'error'); return; }
+      try {
+        await DB.update('users', this.currentUser.id, { password: this.profileForm.new_password });
+        await this.reload();
+        const updated = this.users.find(u => Number(u.id) === Number(this.currentUser.id));
+        if (updated) {
+          this.currentUser = updated;
+          localStorage.setItem('beton_current', JSON.stringify(updated));
+        }
+        this.profileForm = { old_password: '', new_password: '', confirm_password: '' };
+        this.toastMsg('Password berhasil diubah!');
+      } catch (e) { this.toastMsg('Gagal ubah password: ' + (e?.message || e), 'error'); }
+    },
+
+    togglePwVisible(id) { this.pwVisible = { ...this.pwVisible, [id]: !this.pwVisible[id] }; },
+
+    async toggleUserActive(id) {
+      try {
+        const target = this.users.find(u => Number(u.id) === Number(id));
+        if (!target) return;
+        if (Number(target.id) === Number(this.currentUser.id)) { this.toastMsg('Tidak bisa nonaktifkan akun sendiri', 'error'); return; }
+        await DB.update('users', id, { is_active: target.is_active === false ? true : false });
+        await this.reload();
+        const updated = this.users.find(u => Number(u.id) === Number(id));
+        this.toastMsg('User "' + (updated?.username || '') + '" ' + (updated?.is_active ? 'diaktifkan' : 'dinonaktifkan'));
+      } catch (e) { this.toastMsg('Gagal ubah status user: ' + (e?.message || e), 'error'); }
+    },
+
+    async logout() {
+      await signOutSupabaseAuth();
+      this.currentUser = null;
+      localStorage.removeItem('beton_current');
+    },
+
+    /* ─────────── STATS (legacy getter) ─────────── */
+    get stats() {
+      const u = this.currentUser;
+      let myProspek = this.prospects.slice();
+      let myOrders = this.orders.slice();
+      if (u?.role === 'sales') {
+        myProspek = myProspek.filter(p => Number(p.sales_id) === Number(u.id));
+        myOrders = myOrders.filter(o => Number(o.sales_id) === Number(u.id));
+      }
+      const today = todayISO();
+      return {
+        totalProspek: myProspek.length,
+        repeatOrder: myProspek.filter(p => p.source === 'customer_repeat').length,
+        visitDone: myProspek.filter(p => p.visit_status === 'done').length,
+        complete: myProspek.filter(p => p.site_no_status === 'complete').length,
+        totalOrder: myOrders.length,
+        orderToday: myOrders.filter(o => o.delivery_date === today).length,
+        qtyOrder: myOrders.reduce((s, o) => s + (+o.qty_order || 0), 0),
+        qtyDelivered: myOrders.reduce((s, o) => s + (+o.qty_delivery || 0), 0),
       };
     },
-    get dashDeliveryRate() { const s = this.dashStats; return s.qtyOrder > 0 ? (s.qtyDelivered / s.qtyOrder) * 100 : 0; },
-    get dashRepeatOrderRate() { const s = this.dashStats; return s.totalProspek > 0 ? (s.repeatOrder / s.totalProspek) * 100 : 0; },
-    get dashConversionRate() { const s = this.dashStats; return s.totalProspek > 0 ? (s.totalOrder / s.totalProspek) * 100 : 0; },
-    get dashStatusBreakdown() {
-      const ords = this._dashOrdersInRange;
-      return { open: ords.filter(o => o.status === 'scheduled').length, partial: ords.filter(o => o.status === 'partial').length, completed: ords.filter(o => o.status === 'completed').length, cancelled: ords.filter(o => o.status === 'cancelled').length, total: ords.length };
-    },
-    get dashDonutStyle() {
-      const b = this.dashStatusBreakdown;
-      if (b.total === 0) return 'background: conic-gradient(#e2e8f0 0deg 360deg);';
-      const seg = (n) => (n / b.total) * 360;
-      const a1 = seg(b.open), a2 = a1 + seg(b.partial), a3 = a2 + seg(b.completed), a4 = a3 + seg(b.cancelled);
-      return `background: conic-gradient(#3b82f6 0deg ${a1}deg, #f59e0b ${a1}deg ${a2}deg, #10b981 ${a2}deg ${a3}deg, #ef4444 ${a3}deg ${a4}deg);`;
-    },
-    get dashTrendDaily() {
-      const { start, end } = this._dashRange;
-      if (!start || !end) return [];
-      const days = []; const cur = new Date(start); const last = new Date(end);
-      while (cur <= last) { const key = cur.toISOString().slice(0, 10); days.push({ date: key, label: key, orderQty: 0, delivQty: 0 }); cur.setDate(cur.getDate() + 1); }
-      const map = {}; days.forEach(d => { map[d.date] = d; });
-      this._dashOrdersInRange.forEach(o => { if (map[o.delivery_date]) map[o.delivery_date].orderQty += Number(o.qty_order) || 0; });
-      this._dashDeliveriesInRange.forEach(d => { if (map[d.delivery_date]) map[d.delivery_date].delivQty += Number(d.qty) || 0; });
-      return days;
-    },
-    get dashTrendMax() { return Math.max(1, ...this.dashTrendDaily.map(d => Math.max(d.orderQty, d.delivQty))); },
-    get dashWeeklyData() {
-      const { start, end } = this._dashRange;
-      if (!start || !end) return [];
-      const weeks = []; const s = new Date(start); const day = (s.getDay() + 6) % 7; s.setDate(s.getDate() - day);
-      while (s <= new Date(end)) {
-        const ws = new Date(s); const we = new Date(s); we.setDate(we.getDate() + 6);
-        weeks.push({ label: `${ws.getDate()}/${ws.getMonth() + 1}`, start: ws.toISOString().slice(0, 10), end: we.toISOString().slice(0, 10), prospek: 0, order: 0 });
-        s.setDate(s.getDate() + 7);
-      }
-      const inWeek = (dateStr, w) => dateStr >= w.start && dateStr <= w.end;
-      weeks.forEach(w => {
-        w.prospek = this.prospek.filter(p => inWeek((p.created_at || '').slice(0, 10), w)).length;
-        w.order = this._dashOrdersInRange.filter(o => inWeek(o.delivery_date, w)).reduce((a, o) => a + (Number(o.qty_order) || 0), 0);
-      });
-      return weeks;
-    },
-    get dashWeeklyMaxProspek() { return Math.max(1, ...this.dashWeeklyData.map(w => w.prospek)); },
-    get dashWeeklyMaxOrder() { return Math.max(1, ...this.dashWeeklyData.map(w => w.order)); },
-    get dashRecentOrders() { return [...this._dashOrdersInRange].sort((a, b) => (b.delivery_date || '').localeCompare(a.delivery_date || '')).slice(0, 5); },
-    get dashIncompleteSites() {
-      const bySite = {};
-      this.prospek.forEach(p => {
-        if (p.site_no_status !== 'complete' || !p.site_no) return;
-        const qtyPo = Number(p.qty_po) || 0;
-        const ords = this.orders.filter(o => o.site_no === p.site_no && o.status !== 'cancelled');
-        const delivered = ords.reduce((a, o) => a + (Number(o.qty_delivery) || 0), 0);
-        const remain = qtyPo > 0 ? Math.max(0, qtyPo - delivered) : 0;
-        if (remain > 0) bySite[p.id] = { id: p.id, site_no: p.site_no, project_name: p.project_name, qty_po: qtyPo, remain };
-      });
-      return Object.values(bySite).slice(0, 10);
-    },
 
-    // ═══════════════════════════════════════════════════════════
-    // PROSPEK
-    // ═══════════════════════════════════════════════════════════
-    get filteredProspek() {
-      const q = (this.pFilter.q || '').toLowerCase();
-      return this.prospek.filter(p => {
-        if (q && !((p.project_name || '').toLowerCase().includes(q) || (p.site_no || '').toLowerCase().includes(q))) return false;
-        if (this.pFilter.source && (p.source || 'internal') !== this.pFilter.source) return false;
-        if (this.pFilter.status && (p.site_no_status || 'waiting') !== this.pFilter.status) return false;
-        return true;
-      });
-    },
-
+    /* ─────────── PROSPEK ─────────── */
     async saveProspek() {
       const yy = new Date().toISOString().slice(0, 7).replace('-', '');
       const seq = this.prospects.length + 1;
       const no = `PRS/${yy}/${String(seq).padStart(4, '0')}`;
       const comp = this.competitors.find(c => Number(c.id) === Number(this.pForm.competitor_id));
-      
-      // ✅ PERBAIKAN: Memastikan payload sesuai dengan kolom tabel 'prospects' di Supabase
       const newItem = {
         prospect_no: no,
-        project_name: this.pForm.project_name, 
-        address: this.pForm.address,
-        pic_name: this.pForm.pic_name, 
-        pic_contact: this.pForm.pic_contact,
+        project_name: this.pForm.project_name, address: this.pForm.address,
+        pic_name: this.pForm.pic_name, pic_contact: this.pForm.pic_contact,
         construction_type: this.pForm.construction_type,
-        // Pastikan ID dikirim sebagai angka (integer), bukan string kosong
         competitor_id: comp ? Number(comp.id) : null,
         competitor_name: comp?.name || this.pForm.competitor_other || '',
-        
-        // Default value sistem
-        sales_id: this.currentUser?.id || null, 
-        sales_visit_id: null,
-        site_no: null, 
-        site_no_status: 'waiting', 
-        po_no: null, 
-        qty_po: 0,
-        visit_status: 'not_yet', 
-        final_status: 'open',
-        source: 'internal', 
-        created_at: new Date().toISOString(),
+        sales_id: this.currentUser.id, sales_visit_id: null,
+        site_no: null, site_no_status: 'waiting', po_no: null, qty_po: 0,
+        visit_status: 'not_yet', final_status: 'open',
+        source: 'internal', created_at: new Date().toISOString(),
       };
-      
       try {
         await DB.insert('prospects', newItem);
         await this.reload();
         this.pForm = { project_name: '', address: '', pic_name: '', pic_contact: '', construction_type: '', competitor_id: '', competitor_other: '' };
         this.toastMsg('Prospek disimpan: ' + no);
         await this.nav('dataProspek');
-      } catch (e) { 
-        this.toastMsg('Gagal simpan: ' + (e?.message || e), 'error'); 
-      }
+      } catch (e) { this.toastMsg('Gagal simpan: ' + (e?.message || e), 'error'); }
     },
 
-    async deleteProspect(p) {
-      if (!confirm(`Hapus prospek "${p.project_name}"?`)) return;
+    get filteredProspek() {
+      const u = this.currentUser;
+      const allowed = this.accessibleSites;
+      return this.prospects
+        .filter(p => {
+          if (u?.role === 'customer') return allowed.includes(p.site_no);
+          return true;
+        })
+        .filter(p => !this.pFilter.q || p.project_name.toLowerCase().includes(this.pFilter.q.toLowerCase()))
+        .filter(p => !this.pFilter.visit || p.visit_status === this.pFilter.visit)
+        .filter(p => !this.pFilter.status || p.site_no_status === this.pFilter.status)
+        .filter(p => !this.pFilter.source || (p.source || 'internal') === this.pFilter.source)
+        .sort((a, b) => b.id - a.id);
+    },
+
+    openVisit(p) {
+      const v = this.visits.find(x => Number(x.prospect_id) === Number(p.id)) || {};
+      this.visitModal = { show: true, id: p.id, project_name: p.project_name, current_status: p.visit_status || 'not_yet' };
+      this.vForm = {
+        estimasi_tgl_cor: v.estimasi_tgl_cor || '', jam_loading: v.jam_loading || '',
+        mutu_id: v.mutu_id || '', estimasi_volume: v.estimasi_volume || 0,
+        plant_id: v.plant_id || '', metode_cor: v.metode_cor || '',
+        win: !!v.win, lost: !!v.lost,
+      };
+    },
+
+    async saveVisit() {
+      const existing = this.visits.find(v => Number(v.prospect_id) === Number(this.visitModal.id));
+      const payload = {
+        prospect_id: this.visitModal.id,
+        estimasi_tgl_cor: this.vForm.estimasi_tgl_cor, jam_loading: this.vForm.jam_loading,
+        mutu_id: this.vForm.mutu_id ? Number(this.vForm.mutu_id) : null,
+        estimasi_volume: this.vForm.estimasi_volume,
+        plant_id: this.vForm.plant_id ? Number(this.vForm.plant_id) : null,
+        metode_cor: this.vForm.metode_cor,
+        win: this.vForm.win, lost: this.vForm.lost,
+        created_by: this.currentUser?.id,
+      };
       try {
-        // ✅ FIX: prospects
-        const { error } = await supabaseClient.from('prospects').delete().eq('id', p.id);
-        if (error) throw error;
-        this.toast = 'Prospek dihapus'; this.toastType = 'success';
-        await this.refreshData();
-      } catch (e) { this.toast = 'Gagal hapus: ' + (e.message || e); this.toastType = 'error'; }
+        if (existing) {
+          await DB.update('visits', existing.id, payload);
+        } else {
+          await DB.insert('visits', payload);
+        }
+        const p = this.prospects.find(x => Number(x.id) === Number(this.visitModal.id));
+        if (p) {
+          await DB.update('prospects', p.id, {
+            visit_status: 'done',
+            visit_done_at: new Date().toISOString(),
+            sales_visit_id: this.currentUser?.id,
+            site_no_status: p.site_no_status === 'waiting' ? 'propose_site_no' : p.site_no_status
+          });
+        }
+        await this.reload();
+        this.visitModal.show = false;
+        this.toastMsg('Visit disimpan (DONE / Final)');
+      } catch (e) { this.toastMsg('Gagal simpan visit: ' + (e?.message || e), 'error'); }
     },
 
     async claimProspek(p) {
+      if (!this.currentUser?.id) return;
       try {
-        // ✅ FIX: prospects
-        const { error } = await supabaseClient.from('prospects').update({ sales_id: this.currentUser.id }).eq('id', p.id);
-        if (error) throw error;
-        this.toast = 'Prospek berhasil di-claim'; this.toastType = 'success';
-        await this.refreshData();
-      } catch (e) { this.toast = 'Gagal claim: ' + (e.message || e); this.toastType = 'error'; }
+        await DB.update('prospects', p.id, {
+          sales_id: this.currentUser.id,
+          final_status: 'follow_up',
+        });
+        const relatedNotifs = this.notifications.filter(n => Number(n.prospect_id) === Number(p.id));
+        for (const n of relatedNotifs) {
+          const readBy = Array.isArray(n.read_by) ? [...n.read_by] : [];
+          if (!readBy.includes(this.currentUser.id)) {
+            readBy.push(this.currentUser.id);
+            await DB.update('notifications', n.id, { read_by: readBy });
+          }
+        }
+        await this.reload();
+        this.toastMsg('Prospek diambil!');
+      } catch (e) { this.toastMsg('Gagal klaim prospek: ' + (e?.message || e), 'error'); }
     },
 
-    showRequestDetail(p) { alert(`Detail Permintaan Repeat Order\n\nProject: ${p.project_name}\nAlamat: ${p.address || '-'}\nPIC: ${p.pic_name || '-'}\nKontak: ${p.pic_contact || '-'}`); },
-    openVisit(p) { alert(`Form visit untuk: ${p.project_name}\n\n(Fitur ini membuka modal visit di versi asli)`); },
+    async deleteProspect(p) {
+      if (!this.currentUser || this.currentUser.role !== 'owner') {
+        this.toastMsg('Hanya Owner yang bisa menghapus prospek', 'error'); return;
+      }
+      const relatedOrders = this.orders.filter(o => Number(o.prospect_id) === Number(p.id));
+      let msg = 'Hapus prospek "' + p.project_name + '" (' + (p.prospect_no || '-') + ')?';
+      if (relatedOrders.length > 0) {
+        msg += '\n\n⚠️ Prospek ini memiliki ' + relatedOrders.length + ' order terkait.\nOrder & delivery juga akan dihapus.';
+      }
+      if (!confirm(msg)) return;
 
-    goOrder(p) {
-      this.oForm = { site_no: p.site_no, project_name: p.project_name, address: p.address || '', po_no: p.po_no || '', pic_name: p.pic_name || '', mutu_list: this.mutuList.filter(m => (p.mutu || []).map(Number).includes(Number(m.id))), plant_list: this.plants.filter(pl => (p.plant_ids || []).map(Number).includes(Number(pl.id))) };
-      this.nav('inputOrder');
+      try {
+        for (const o of relatedOrders) {
+          const delivs = this.deliveries.filter(d => Number(d.order_id) === Number(o.id));
+          for (const d of delivs) await DB.remove('deliveries', d.id);
+          await DB.remove('orders', o.id);
+        }
+        const visits = this.visits.filter(v => Number(v.prospect_id) === Number(p.id));
+        for (const v of visits) await DB.remove('visits', v.id);
+        const proposals = this.propose.filter(pr => Number(pr.prospect_id) === Number(p.id));
+        for (const pr of proposals) await DB.remove('propose', pr.id);
+        const notifs = this.notifications.filter(n => Number(n.prospect_id) === Number(p.id));
+        for (const n of notifs) await DB.remove('notifications', n.id);
+        await DB.remove('prospects', p.id);
+        await this.reload();
+        this.toastMsg('Prospek "' + p.project_name + '" berhasil dihapus');
+      } catch (e) { this.toastMsg('Gagal hapus prospek: ' + (e?.message || e), 'error'); }
     },
 
-    // ═══════════════════════════════════════════════════════════
-    // ORDER
-    // ═══════════════════════════════════════════════════════════
-    get completeSites() { return this.prospek.filter(p => p.site_no_status === 'complete' && p.site_no); },
-    get filteredOrders() {
-      const q = (this.sFilter.q || '').toLowerCase();
-      return this.orders.filter(o => {
-        if (q && !((o.order_no || '').toLowerCase().includes(q) || (o.site_no || '').toLowerCase().includes(q) || (o.project_name || '').toLowerCase().includes(q))) return false;
-        if (this.sFilter.plant_id && String(o.plant_id) !== String(this.sFilter.plant_id)) return false;
-        if (this.sFilter.mutu_id && String(o.mutu_id) !== String(this.sFilter.mutu_id)) return false;
-        if (this.sFilter.status && o.status !== this.sFilter.status) return false;
-        return true;
-      });
+    async showRequestDetail(p) {
+      this.reqModal = { show: true, data: p };
+      try {
+        const relatedNotifs = this.notifications.filter(n => Number(n.prospect_id) === Number(p.id));
+        for (const n of relatedNotifs) {
+          const readBy = Array.isArray(n.read_by) ? [...n.read_by] : [];
+          if (!readBy.includes(this.currentUser.id)) {
+            readBy.push(this.currentUser.id);
+            await DB.update('notifications', n.id, { read_by: readBy });
+          }
+        }
+        await this.reload();
+      } catch (e) { console.error('showRequestDetail error:', e); }
+    },
+
+    get customerSites() {
+      const u = this.currentUser;
+      if (!u || u.role !== 'customer') return [];
+      const sites = u.assigned_sites || [];
+      const map = {};
+      this.prospects.filter(p => sites.includes(p.site_no)).forEach(p => { if (!map[p.site_no]) map[p.site_no] = p; });
+      return Object.values(map);
+    },
+
+    openOneClickOrder(o) {
+      this.ocModal = { show: true, data: o, mode: 'repeat' };
+      const tgl = new Date(); tgl.setDate(tgl.getDate() + 3);
+      this.ocForm = { site_no: o.site_no, delivery_date: tgl.toISOString().slice(0, 10), pouring_time: '08:00', qty_order: o.qty_order || 0, metode_cor: o.metode_cor || 'Pompa', note: '' };
+    },
+    openNewCustomerOrder() {
+      this.ocModal = { show: true, data: null, mode: 'new' };
+      const tgl = new Date(); tgl.setDate(tgl.getDate() + 3);
+      this.ocForm = { site_no: '', delivery_date: tgl.toISOString().slice(0, 10), pouring_time: '08:00', qty_order: 0, metode_cor: 'Pompa', note: '' };
+    },
+    async saveOneClickOrder() {
+      if (!this.ocForm.delivery_date || !this.ocForm.pouring_time || !this.ocForm.qty_order || !this.ocForm.metode_cor) {
+        this.toastMsg('Lengkapi semua field', 'error'); return;
+      }
+      const customer = this.currentUser;
+      let site_no, project_name, address, pic_name, pic_contact, po_no, mutu_id, plant_id, ref_order_no, ref_prospect_id;
+      if (this.ocModal.mode === 'repeat' && this.ocModal.data) {
+        const o = this.ocModal.data;
+        site_no = o.site_no; project_name = o.project_name; address = o.address;
+        pic_name = o.pic_name; pic_contact = o.pic_contact; po_no = o.po_no;
+        mutu_id = o.mutu_id; plant_id = o.plant_id;
+        ref_order_no = o.order_no; ref_prospect_id = o.prospect_id;
+      } else {
+        const p = this.prospects.find(x => x.site_no === this.ocForm.site_no);
+        if (!p) { this.toastMsg('Pilih Site No terlebih dahulu', 'error'); return; }
+        site_no = p.site_no; project_name = p.project_name; address = p.address;
+        pic_name = p.pic_name; pic_contact = p.pic_contact; po_no = p.po_no;
+        const lastOrder = this.orders.filter(o => o.site_no === p.site_no).sort((a, b) => b.id - a.id)[0];
+        mutu_id = lastOrder?.mutu_id || (this.mutuList[0]?.id);
+        plant_id = lastOrder?.plant_id || (this.plants[0]?.id);
+        ref_order_no = lastOrder?.order_no || '-';
+        ref_prospect_id = p.id;
+      }
+      const yy = new Date().toISOString().slice(0, 7).replace('-', '');
+      const seq = this.prospects.length + 1;
+      const no = `RPT/${yy}/${String(seq).padStart(4, '0')}`;
+      const newProspect = {
+        prospect_no: no,
+        project_name, address, pic_name, pic_contact,
+        construction_type: 'Repeat', competitor_name: '-',
+        sales_id: null, sales_visit_id: null,
+        site_no, site_no_status: 'complete', po_no,
+        visit_status: 'not_yet', final_status: 'repeat_order',
+        source: 'customer_repeat',
+        requested_by: customer.id, requested_by_name: customer.name,
+        ref_order_no, ref_prospect_id,
+        request_delivery_date: this.ocForm.delivery_date,
+        request_pouring_time: this.ocForm.pouring_time,
+        request_qty: this.ocForm.qty_order,
+        request_metode_cor: this.ocForm.metode_cor,
+        request_mutu_id: mutu_id, request_plant_id: plant_id,
+        request_note: this.ocForm.note,
+        created_at: new Date().toISOString(),
+      };
+      try {
+        const created = await DB.insert('prospects', newProspect);
+        await DB.insert('notifications', {
+          type: 'repeat_order',
+          prospect_id: created?.id || null, prospect_no: no,
+          message: `${customer.name} minta order ${site_no}`,
+          customer_id: customer.id, customer_name: customer.name,
+          site_no, project_name, qty: this.ocForm.qty_order, mutu_id, plant_id,
+          created_at: new Date().toISOString(), read_by: [],
+        });
+        await this.reload();
+        this.ocModal.show = false;
+        this.ocForm = { site_no: '', delivery_date: '', pouring_time: '', qty_order: 0, metode_cor: '', note: '' };
+        this.toastMsg('Permintaan order terkirim!');
+      } catch (e) { this.toastMsg('Gagal kirim permintaan order: ' + (e?.message || e), 'error'); }
+    },
+
+    /* ─────────── ORDER ─────────── */
+    async goOrder(p) {
+      await this.nav('inputOrder');
+      this.oForm.site_no = p.site_no;
+      this.onSiteChange();
+    },
+    get completeSites() { return this.prospects.filter(p => p.site_no_status === 'complete' && p.source !== 'customer_repeat'); },
+    get siteFound() {
+      const q = String(this.oForm.site_no || '').trim().toLowerCase();
+      return this.completeSites.some(s => String(s.site_no || '').trim().toLowerCase() === q);
     },
     onSiteChange() {
-      const site = this.completeSites.find(s => s.site_no === this.oForm.site_no);
-      if (!site) return;
-      this.oForm.project_name = site.project_name;
-      this.oForm.address = site.address || '';
-      this.oForm.po_no = site.po_no || '';
-      this.oForm.pic_name = site.pic_name || '';
-      this.oForm.mutu_list = this.mutuList.filter(m => (site.mutu || []).map(Number).includes(Number(m.id)));
-      this.oForm.plant_list = this.plants.filter(pl => (site.plant_ids || []).map(Number).includes(Number(pl.id)));
+      const q = String(this.oForm.site_no || '').trim().toLowerCase();
+      const p = this.prospects.find(x => String(x.site_no || '').trim().toLowerCase() === q);
+      if (!p || p.site_no_status !== 'complete') {
+        this.oForm.project_name = ''; this.oForm.address = ''; this.oForm.po_no = '';
+        this.oForm.pic_name = ''; this.oForm.pic_contact = ''; this.oForm.mutu_list = [];
+        this.oForm.plant_list = [];
+        return;
+      }
+      this.oForm.project_name = p.project_name; this.oForm.address = p.address;
+      this.oForm.po_no = p.po_no; this.oForm.pic_name = p.pic_name; this.oForm.pic_contact = p.pic_contact;
+      const prop = this.propose.find(pr => Number(pr.prospect_id) === Number(p.id));
+      const ids = (prop?.mutu || []).map(Number);
+      const filtered = this.mutuList.filter(m => ids.includes(Number(m.id)));
+      this.oForm.mutu_list = filtered.length ? filtered : this.mutuList;
+
+      const plantIds = (prop?.plant_ids || []).map(Number);
+      if (plantIds.length > 0) {
+        this.oForm.plant_list = this.plants.filter(pl => plantIds.includes(Number(pl.id)));
+      } else {
+        this.oForm.plant_list = this.plants.slice();
+      }
+      if (this.oForm.plant_id && !this.oForm.plant_list.some(pl => Number(pl.id) === Number(this.oForm.plant_id))) {
+        this.oForm.plant_id = '';
+      }
     },
+
     async saveOrder() {
-      try {
-        const count = (this.orders || []).length + 1; const orderNo = 'ORD-' + String(count).padStart(5, '0');
-        const payload = {
-          order_no: orderNo, site_no: this.oForm.site_no, project_name: this.oForm.project_name, address: this.oForm.address,
-          po_no: this.oForm.po_no, mutu_id: this.oForm.mutu_id, plant_id: this.oForm.plant_id, delivery_date: this.oForm.delivery_date,
-          pouring_time: this.oForm.pouring_time, qty_order: this.oForm.qty_order, qty_delivery: 0, qty_remain: this.oForm.qty_order,
-          metode_cor: this.oForm.metode_cor, status: 'scheduled', sales_id: this.currentUser.id, created_at: new Date().toISOString(),
-        };
-        const { error } = await supabaseClient.from('orders').insert(payload);
-        if (error) throw error;
-        this.toast = 'Order berhasil disimpan'; this.toastType = 'success'; this.oForm = {};
-        await this.refreshData(); this.nav('jadwal');
-      } catch (e) { this.toast = 'Gagal simpan order: ' + (e.message || e); this.toastType = 'error'; }
-    },
-    openOrderDetail(o) { this.orderDetailModal = { show: true, data: o }; },
-    get orderDetailDeliveries() { return this.orderDetailModal.data ? this.deliveries.filter(d => Number(d.order_id) === Number(this.orderDetailModal.data.id)) : []; },
-    openEditOrder(o) { this.oForm = { ...o }; this.nav('inputOrder'); },
-    openEditOrderFromDetail() { const o = this.orderDetailModal.data; this.orderDetailModal.show = false; this.openEditOrder(o); },
-    async cancelOrderFromSearch(o) {
-      const reason = prompt('Alasan cancel order:'); if (!reason) return;
-      try {
-        const { error } = await supabaseClient.from('orders').update({ status: 'cancelled', cancel_reason: reason }).eq('id', o.id);
-        if (error) throw error;
-        this.toast = 'Order dibatalkan'; this.toastType = 'success'; await this.refreshData();
-      } catch (e) { this.toast = 'Gagal cancel: ' + (e.message || e); this.toastType = 'error'; }
-    },
+      const requestedSiteNo = String(this.oForm.site_no || '').trim().toLowerCase();
+      const p = this.prospects.find(x => String(x.site_no || '').trim().toLowerCase() === requestedSiteNo);
+      if (!p || p.site_no_status !== 'complete') { this.toastMsg('Site No tidak valid atau belum di-approve', 'error'); return; }
 
-    // ═══════════════════════════════════════════════════════════
-    // JADWAL & DELIVERY
-    // ═══════════════════════════════════════════════════════════
-    get jadwalPlantOptions() { return this.plants; },
-    get groupedOrders() {
-      const filtered = this.orders.filter(o => {
-        if (this.jFilter.plants.length && !this.jFilter.plants.map(Number).includes(Number(o.plant_id))) return false;
-        if (this.jFilter.status && o.status !== this.jFilter.status) return false;
-        if (this.jFilter.date && o.delivery_date !== this.jFilter.date) return false;
-        return true;
-      });
-      const groups = {};
-      filtered.forEach(o => {
-        const p = this.plants.find(x => Number(x.id) === Number(o.plant_id));
-        const key = p ? p.name : 'Tanpa Plant';
-        if (!groups[key]) groups[key] = { plant: key, orders: [] };
-        groups[key].orders.push({ ...o, deliveries: this.deliveries.filter(d => Number(d.order_id) === Number(o.id)) });
-      });
-      return Object.values(groups);
-    },
-    openDelivery(o) {
-      const now = new Date();
-      this.edvForm = { order_id: o.id, status: 'delivered', sj_no: '', delivery_date: now.toISOString().slice(0, 10), truck_no: '', qty: 0, driver_name: '', remarks: '', _mode: 'create' };
-      this.editDvModal = { show: true, order_no: o.order_no, delivery_date: this.edvForm.delivery_date };
-    },
-    openEditDelivery(d) { this.edvForm = { ...d, _mode: 'edit' }; const o = this.orderById(d.order_id); this.editDvModal = { show: true, order_no: o?.order_no || '-', delivery_date: d.delivery_date }; },
-    async saveEditDelivery() {
-      try {
-        const mode = this.edvForm._mode || 'edit';
-        if (mode === 'create') {
-          const { error } = await supabaseClient.from('deliveries').insert({ order_id: this.edvForm.order_id, status: this.edvForm.status || 'delivered', sj_no: this.edvForm.sj_no, delivery_date: this.edvForm.delivery_date, truck_no: this.edvForm.truck_no, qty: this.edvForm.qty, driver_name: this.edvForm.driver_name, remarks: this.edvForm.remarks, created_at: new Date().toISOString() });
-          if (error) throw error;
-        } else {
-          const { error } = await supabaseClient.from('deliveries').update({ status: this.edvForm.status, sj_no: this.edvForm.sj_no, truck_no: this.edvForm.truck_no, qty: this.edvForm.qty, driver_name: this.edvForm.driver_name, remarks: this.edvForm.remarks }).eq('id', this.edvForm.id);
-          if (error) throw error;
+      const qty_po = Number(p.qty_po) || 0;
+      if (qty_po > 0) {
+        const totalOrdered = this.orders
+          .filter(o => o.site_no === this.oForm.site_no && o.status !== 'cancelled')
+          .reduce((s, o) => s + (Number(o.qty_order) || 0), 0);
+        const newQty = Number(this.oForm.qty_order) || 0;
+        if (totalOrdered + newQty > qty_po) {
+          const remain = Math.max(0, qty_po - totalOrdered);
+          this.toastMsg(`⚠️ Order melebihi Qty PO! Sisa kuota: ${this.fmt(remain)} m³ dari total PO ${this.fmt(qty_po)} m³. Order tidak dapat dijadwalkan.`, 'error');
+          return;
         }
-        await this._recomputeOrder(this.edvForm.order_id);
-        this.toast = 'Pengiriman tersimpan'; this.toastType = 'success'; this.editDvModal.show = false; await this.refreshData();
-      } catch (e) { this.toast = 'Gagal simpan pengiriman: ' + (e.message || e); this.toastType = 'error'; }
-    },
-    async _recomputeOrder(orderId) {
-      const { data: fresh } = await supabaseClient.from('deliveries').select('*').eq('order_id', orderId);
-      const total = (fresh || []).filter(d => (d.status || 'delivered') === 'delivered').reduce((a, d) => a + (Number(d.qty) || 0), 0);
-      const order = this.orderById(orderId); if (!order) return;
-      const qtyOrder = Number(order.qty_order) || 0; const remain = Math.max(0, qtyOrder - total);
-      const status = total <= 0 ? 'scheduled' : (remain <= 0 ? 'completed' : 'partial');
-      await supabaseClient.from('orders').update({ qty_delivery: total, qty_remain: remain, status }).eq('id', orderId);
+      }
+
+      const yy = new Date().toISOString().slice(0, 7).replace('-', '');
+      const seq = this.orders.length + 1;
+      const no = `ORD/${yy}/${String(seq).padStart(4, '0')}`;
+      const newOrder = {
+        order_no: no,
+        prospect_id: p.id, site_no: p.site_no, project_name: p.project_name,
+        address: p.address, po_no: p.po_no, pic_name: p.pic_name, pic_contact: p.pic_contact,
+        mutu_id: Number(this.oForm.mutu_id), plant_id: Number(this.oForm.plant_id),
+        delivery_date: this.oForm.delivery_date, pouring_time: this.oForm.pouring_time,
+        qty_order: +this.oForm.qty_order, qty_delivery: 0, qty_remain: +this.oForm.qty_order,
+        metode_cor: this.oForm.metode_cor, status: 'scheduled',
+        cancel_reason: '',
+        sales_id: p.sales_visit_id || p.sales_id || this.currentUser?.id,
+        created_by: this.currentUser?.id, created_at: new Date().toISOString(),
+      };
+      try {
+        await DB.insert('orders', newOrder);
+        await this.reload();
+        this.oForm = { site_no: '', project_name: '', address: '', po_no: '', pic_name: '', pic_contact: '', mutu_id: '', plant_id: '', delivery_date: '', pouring_time: '', qty_order: 0, metode_cor: '', mutu_list: [], plant_list: [] };
+        this.toastMsg('Order dibuat');
+        await this.nav('jadwal');
+      } catch (e) { this.toastMsg('Gagal simpan order: ' + (e?.message || e), 'error'); }
     },
 
-    // ═══════════════════════════════════════════════════════════
-    // AFTER DELIVERY
-    // ═══════════════════════════════════════════════════════════
-    get filteredDeliveries() {
-      const q = (this.adFilter.q || '').toLowerCase();
-      return this.deliveries.filter(d => {
-        const o = this.orderById(d.order_id);
-        if (q) { const hay = [d.sj_no, o?.order_no, o?.site_no, o?.project_name].join(' ').toLowerCase(); if (!hay.includes(q)) return false; }
-        if (this.adFilter.plant_id && String(o?.plant_id) !== String(this.adFilter.plant_id)) return false;
-        if (this.adFilter.status && (d.status || 'delivered') !== this.adFilter.status) return false;
-        if (this.adFilter.date_from && d.delivery_date < this.adFilter.date_from) return false;
-        if (this.adFilter.date_to && d.delivery_date > this.adFilter.date_to) return false;
-        return true;
+    /* ─────────── JADWAL ─────────── */
+    get jadwalPlantOptions() {
+      const map = new Map();
+      (this.plants || []).filter(p => p && p.name && p.is_active !== false).forEach(p => {
+        map.set(Number(p.id), { id: Number(p.id), name: p.name });
       });
+      (this.orders || []).forEach(o => {
+        const id = Number(o.plant_id);
+        if (id && !map.has(id)) map.set(id, { id, name: this.plantName(id) || ('Plant #' + id) });
+      });
+      return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
     },
+    isOrderFinished(o) {
+      return ['completed', 'complete', 'finished'].includes(String(o?.status || '').toLowerCase()) || Number(o?.qty_remain) <= 0;
+    },
+
+    get groupedOrders() {
+      const u = this.currentUser;
+      if (!u) return [];
+      let list = this.orders.slice();
+      if (u.role === 'customer') {
+        const allowed = Array.isArray(this.accessibleSites) ? this.accessibleSites : [];
+        const allowedSet = new Set(allowed.map(v => String(v || '').trim().toLowerCase()));
+        list = list.filter(o => allowedSet.has(String(o.site_no || '').trim().toLowerCase()));
+      }
+      const selectedPlants = Array.isArray(this.jFilter.plants)
+        ? this.jFilter.plants.map(v => String(v)).filter(Boolean) : [];
+      if (selectedPlants.length) list = list.filter(o => selectedPlants.includes(String(o.plant_id)));
+      if (this.jFilter.status) {
+        const wantedStatus = String(this.jFilter.status).trim().toLowerCase();
+        list = list.filter(o => String(o.status || 'scheduled').trim().toLowerCase() === wantedStatus);
+      }
+      if (this.jFilter.date) {
+        const wantedDate = String(this.jFilter.date).trim().slice(0, 10);
+        list = list.filter(o => String(o.delivery_date || '').trim().slice(0, 10) === wantedDate);
+      }
+      list = list.map(o => ({ ...o, deliveries: this.deliveries.filter(d => Number(d.order_id) === Number(o.id)) }));
+      list.sort((a, b) => (a.delivery_date + a.pouring_time).localeCompare(b.delivery_date + b.pouring_time));
+      const map = {};
+      list.forEach(o => {
+        const key = this.plantName(o.plant_id) || '-';
+        if (!map[key]) map[key] = { plant: key, orders: [] };
+        map[key].orders.push(o);
+      });
+      return Object.values(map);
+    },
+
+    async recalcOrderStatus(orderId) {
+      const order = this.orders.find(o => Number(o.id) === Number(orderId));
+      if (!order) return;
+      const activeDeliv = this.deliveries.filter(d =>
+        Number(d.order_id) === Number(orderId) && (d.status || 'delivered') === 'delivered'
+      );
+      const total = activeDeliv.reduce((s, d) => s + (+d.qty || 0), 0);
+      const remain = order.qty_order - total;
+      let status = order.status;
+      if (status !== 'cancelled') {
+        status = total <= 0 ? 'scheduled' : (remain <= 0 ? 'completed' : 'partial');
+      }
+      try {
+        await DB.update('orders', orderId, { qty_delivery: total, qty_remain: remain, status });
+      } catch (e) { console.error('recalcOrderStatus error:', e); }
+    },
+
+    openDelivery(o) {
+      this.dvModal = {
+        show: true, order_id: o.id, site_no: o.site_no, remain: o.qty_remain,
+        order_no: o.order_no, order_delivery_date: o.delivery_date,
+      };
+      this.dvForm = { sj_no: '', delivery_date: o.delivery_date, truck_no: '', qty: 0, driver_name: '' };
+    },
+
+    async saveDelivery() {
+      const o = this.orders.find(x => Number(x.id) === Number(this.dvModal.order_id));
+      if (!o) return;
+      if (+this.dvForm.qty > o.qty_remain) { this.toastMsg('Muatan melebihi sisa', 'error'); return; }
+      const sjNo = (this.dvForm.sj_no || '').trim();
+      if (sjNo) {
+        const dupe = this.deliveries.find(d => (d.sj_no || '').toLowerCase() === sjNo.toLowerCase());
+        if (dupe) { this.toastMsg('No SJ sudah dipakai. Gunakan nomor lain.', 'error'); return; }
+      }
+      const newDelivery = {
+        order_id: o.id,
+        sj_no: sjNo || null,
+        delivery_date: o.delivery_date,
+        truck_no: this.dvForm.truck_no,
+        qty: +this.dvForm.qty,
+        driver_name: this.dvForm.driver_name,
+        status: 'delivered',
+        remarks: '',
+        created_by: this.currentUser?.id,
+        created_at: new Date().toISOString(),
+      };
+      try {
+        await DB.insert('deliveries', newDelivery);
+        await this.recalcOrderStatus(o.id);
+        await this.reload();
+        this.dvModal.show = false;
+        this.toastMsg('Delivery disimpan' + (sjNo ? '. No SJ: ' + sjNo : ' (tanpa No SJ).'));
+      } catch (e) { this.toastMsg('Gagal simpan delivery: ' + (e?.message || e), 'error'); }
+    },
+
+    openEditDelivery(d) {
+      const parentOrder = this.orderById(d.order_id);
+      if (this.isOrderFinished(parentOrder)) { this.toastMsg('Order sudah Complete/Finished. Pengiriman tidak dapat diedit.', 'error'); return; }
+      this.editDvModal = {
+        show: true, deliveryId: d.id, order_id: d.order_id,
+        order_no: this.orderById(d.order_id)?.order_no || '-',
+        delivery_date: d.delivery_date,
+      };
+      this.edvForm = {
+        status: d.status || 'delivered',
+        remarks: d.remarks || '',
+        sj_no: d.sj_no || '',
+        truck_no: d.truck_no || '',
+        qty: d.qty || 0,
+        driver_name: d.driver_name || '',
+      };
+    },
+
+    async saveEditDelivery() {
+      const parentOrder = this.orderById(this.editDvModal.order_id || this.editDvModal.data?.order_id);
+      if (parentOrder && this.isOrderFinished(parentOrder)) { this.toastMsg('Order sudah Complete/Finished. Pengiriman tidak dapat diedit.', 'error'); this.editDvModal.show = false; return; }
+      const existing = this.deliveries.find(d => Number(d.id) === Number(this.editDvModal.deliveryId));
+      if (!existing) return;
+
+      const newStatus = this.edvForm.status || 'delivered';
+      const remarks = (this.edvForm.remarks || '').trim();
+
+      if ((newStatus === 'rejected' || newStatus === 'cancelled') && !remarks) {
+        this.toastMsg('Keterangan wajib diisi untuk status Rejected / Cancelled', 'error'); return;
+      }
+      const sjNo = (this.edvForm.sj_no || '').trim();
+      if (sjNo) {
+        const dupe = this.deliveries.find(d => Number(d.id) !== Number(this.editDvModal.deliveryId)
+                                  && (d.sj_no || '').toLowerCase() === sjNo.toLowerCase());
+        if (dupe) { this.toastMsg('No SJ sudah dipakai.', 'error'); return; }
+      }
+      const orderId = existing.order_id;
+      try {
+        await DB.update('deliveries', this.editDvModal.deliveryId, {
+          status: newStatus,
+          remarks: remarks,
+          sj_no: sjNo || null,
+          truck_no: this.edvForm.truck_no,
+          qty: +this.edvForm.qty,
+          driver_name: this.edvForm.driver_name,
+          updated_at: new Date().toISOString(),
+        });
+        await this.recalcOrderStatus(orderId);
+        await this.reload();
+        this.editDvModal.show = false;
+        this.toastMsg('Pengiriman diupdate — Status: ' + newStatus);
+      } catch (e) { this.toastMsg('Gagal update delivery: ' + (e?.message || e), 'error'); }
+    },
+
+    /* ─────────── AFTER DELIVERY ─────────── */
     downloadAfterDeliveryExcel() {
-      const rows = this.filteredDeliveries; if (!rows.length) { alert('Tidak ada data'); return; }
-      const header = ['Tgl Kirim','No SJ','Status','Order No','Site No','Project','Sales','Mutu','Plant','Truck No','Qty','Driver','Remarks'];
-      const lines = [header.join('\t')];
+      const rows = this.filteredDeliveries;
+      if (rows.length === 0) { this.toastMsg('Tidak ada data untuk di-download', 'error'); return; }
+      let html = '<html><head><meta charset="UTF-8"></head><body>';
+      html += '<h3>After Delivery Report</h3>';
+      html += '<table border="1" cellpadding="4" cellspacing="0"><thead><tr>';
+      const cols = ['Tgl Kirim', 'No SJ', 'Status', 'Order No', 'Site No', 'Project', 'Sales', 'Mutu', 'Plant', 'Truck No', 'Qty (m³)', 'Driver', 'Remarks'];
+      cols.forEach(c => html += `<th style="background:#f0f0f0">${c}</th>`);
+      html += '</tr></thead><tbody>';
       rows.forEach(d => {
         const o = this.orderById(d.order_id) || {};
-        lines.push([d.delivery_date, d.sj_no || '', d.status || 'delivered', o.order_no || '', o.site_no || '', o.project_name || '', this.salesName(o.sales_id), this.mutuCode(o.mutu_id), this.plantName(o.plant_id), d.truck_no || '', d.qty || 0, d.driver_name || '', d.remarks || ''].map(x => String(x).replace(/\t/g, ' ')).join('\t'));
+        html += '<tr>';
+        html += `<td>${d.delivery_date || ''}</td>`;
+        html += `<td>${d.sj_no || ''}</td>`;
+        html += `<td>${d.status || 'delivered'}</td>`;
+        html += `<td>${o.order_no || ''}</td>`;
+        html += `<td>${o.site_no || ''}</td>`;
+        html += `<td>${o.project_name || ''}</td>`;
+        html += `<td>${this.salesName(o.sales_id)}</td>`;
+        html += `<td>${this.mutuCode(o.mutu_id)}</td>`;
+        html += `<td>${this.plantName(o.plant_id)}</td>`;
+        html += `<td>${d.truck_no || ''}</td>`;
+        html += `<td>${d.qty || 0}</td>`;
+        html += `<td>${d.driver_name || ''}</td>`;
+        html += `<td>${d.remarks || ''}</td>`;
+        html += '</tr>';
       });
-      const blob = new Blob([lines.join('\n')], { type: 'text/tab-separated-values' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `after-delivery-${todayISO()}.tsv`; a.click();
+      html += '</tbody></table></body></html>';
+      const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `AfterDelivery_${todayISO()}.xls`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      this.toastMsg('File Excel di-download');
     },
 
-    // ═══════════════════════════════════════════════════════════
-    // APPROVAL SITE NO
-    // ═══════════════════════════════════════════════════════════
-    get filteredProposals() {
-      const q = (this.psFilter.q || '').toLowerCase();
-      return this.prospek.filter(p => {
-        if (this.psFilter.status && (p.site_no_status || 'waiting') !== this.psFilter.status) return false;
-        if (q && !((p.project_name || '').toLowerCase().includes(q) || (p.site_no || '').toLowerCase().includes(q))) return false;
-        return true;
-      });
-    },
-    openPropose(p) {
-      this.editPropModal = { show: true, ...p };
-      this.editPropForm = { site_no: p.site_no || '', po_no: p.po_no || '', qty_po: p.qty_po || 0, mutu: (p.mutu || []).map(Number), plant_ids: (p.plant_ids || []).map(Number) };
-    },
-    openEditPropose(p) { this.openPropose(p); },
-    get editPropVisitMutuLabel() { const p = this.editPropModal; return p.visit_mutu_code ? `${p.visit_mutu_code} — ${p.visit_mutu_name || ''}`.trim() : '-'; },
-    async saveEditPropose() {
-      try {
-        // ✅ FIX: prospects
-        const { error } = await supabaseClient.from('prospects').update({ site_no: this.editPropForm.site_no, po_no: this.editPropForm.po_no, qty_po: this.editPropForm.qty_po, mutu: this.editPropForm.mutu, plant_ids: this.editPropForm.plant_ids, site_no_status: 'complete', site_no_completed_at: new Date().toISOString() }).eq('id', this.editPropModal.id);
-        if (error) throw error;
-        this.toast = 'Approval site no tersimpan'; this.toastType = 'success'; this.editPropModal.show = false; await this.refreshData();
-      } catch (e) { this.toast = 'Gagal simpan: ' + (e.message || e); this.toastType = 'error'; }
-    },
-    async toggleHoldSite(p) {
-      try {
-        const held = p.site_no_status === 'held';
-        const reason = held ? null : (prompt('Alasan hold site:') || 'Di-hold owner');
-        // ✅ FIX: prospects
-        const { error } = await supabaseClient.from('prospects').update({ site_no_status: held ? 'complete' : 'held', hold_reason: reason }).eq('id', p.id);
-        if (error) throw error;
-        this.toast = held ? 'Site di-release' : 'Site di-hold'; this.toastType = 'success'; await this.refreshData();
-      } catch (e) { this.toast = 'Gagal: ' + (e.message || e); this.toastType = 'error'; }
+    /* ─────────── ORDER SEARCH ─────────── */
+    openEditOrder(o) {
+      if (this.isOrderFinished(o)) { this.toastMsg('Order sudah Complete/Finished dan tidak dapat diedit.', 'error'); return; }
+      this.editOrderModal = { show: true, data: o };
+      this.eoForm = { mutu_id: o.mutu_id, plant_id: o.plant_id, delivery_date: o.delivery_date,
+                      pouring_time: o.pouring_time, qty_order: o.qty_order, metode_cor: o.metode_cor, status: o.status };
     },
 
-    // ═══════════════════════════════════════════════════════════
-    // MARKETING
-    // ═══════════════════════════════════════════════════════════
-    onMktSearchInput() {
-      const q = (this.mktFilter.siteSearch || '').toLowerCase();
-      if (!q) { this.mktSuggestions = []; this.mktSuggestOpen = false; this.mktSelectedSite = null; return; }
-      this.mktSuggestions = this.completeSites.filter(s => (s.site_no || '').toLowerCase().includes(q) || (s.project_name || '').toLowerCase().includes(q)).slice(0, 8);
-      this.mktSuggestOpen = this.mktSuggestions.length > 0; this.mktSelectedSite = null;
+    async saveEditOrder() {
+      const o = this.editOrderModal.data;
+      if (this.isOrderFinished(o)) { this.toastMsg('Order sudah Complete/Finished dan tidak dapat diedit.', 'error'); this.editOrderModal.show = false; return; }
+      const prospect = this.prospects.find(x => x.site_no === o.site_no);
+      const qty_po = Number(prospect?.qty_po) || 0;
+      if (qty_po > 0) {
+        const totalOther = this.orders
+          .filter(x => x.site_no === o.site_no && x.status !== 'cancelled' && Number(x.id) !== Number(o.id))
+          .reduce((s, x) => s + (Number(x.qty_order) || 0), 0);
+        const newQty = Number(this.eoForm.qty_order) || 0;
+        const oldQty = Number(o.qty_order) || 0;
+        if (newQty > oldQty && (totalOther + newQty > qty_po)) {
+          const remain = Math.max(0, qty_po - totalOther);
+          this.toastMsg(`⚠️ Order melebihi Qty PO! Sisa kuota: ${this.fmt(remain)} m³ dari total PO ${this.fmt(qty_po)} m³.`, 'error');
+          return;
+        }
+      }
+      const qty = Number(this.eoForm.qty_order);
+      const del = Number(o.qty_delivery) || 0;
+      const remain = qty - del;
+      let status = this.eoForm.status;
+      if (o.status === 'cancelled') {
+        status = 'cancelled';
+      } else {
+        status = del <= 0 ? 'scheduled' : (remain <= 0 ? 'completed' : 'partial');
+      }
+      try {
+        await DB.update('orders', o.id, {
+          mutu_id: Number(this.eoForm.mutu_id), plant_id: Number(this.eoForm.plant_id),
+          delivery_date: this.eoForm.delivery_date, pouring_time: this.eoForm.pouring_time,
+          qty_order: qty, qty_remain: remain, metode_cor: this.eoForm.metode_cor, status
+        });
+        await this.reload();
+        this.editOrderModal.show = false;
+        this.toastMsg('Order diupdate');
+      } catch (e) { this.toastMsg('Gagal update order: ' + (e?.message || e), 'error'); }
     },
-    onMktSearchEnter() { if (this.mktSuggestions.length) this.selectMktSite(this.mktSuggestions[0]); },
-    selectMktSite(s) { this.mktSelectedSite = s; this.mktSuggestOpen = false; this.mktFilter.siteSearch = s.site_no; },
-    resetMktSearch() { this.mktFilter.siteSearch = ''; this.mktSuggestions = []; this.mktSuggestOpen = false; this.mktSelectedSite = null; },
-    get mktOrders() { return this.mktSelectedSite ? this.orders.filter(o => o.site_no === this.mktSelectedSite.site_no) : []; },
-    get mktDeliveries() { if (!this.mktSelectedSite) return []; const orderIds = this.mktOrders.map(o => o.id); return this.deliveries.filter(d => orderIds.map(Number).includes(Number(d.order_id))); },
+
+    async cancelOrderFromEdit() {
+      const o = this.editOrderModal.data;
+      const reason = prompt('Masukkan alasan CANCEL ORDER ' + o.order_no + ':');
+      if (!reason || !reason.trim()) { this.toastMsg('Alasan cancel wajib diisi', 'error'); return; }
+      try {
+        await DB.update('orders', o.id, { status: 'cancelled', cancel_reason: reason.trim(), cancelled_at: new Date().toISOString(), cancelled_by: this.currentUser?.id });
+        await this.reload();
+        this.editOrderModal.show = false;
+        this.toastMsg('Order ' + o.order_no + ' dibatalkan');
+      } catch (e) { this.toastMsg('Gagal cancel order: ' + (e?.message || e), 'error'); }
+    },
+
+    async cancelOrderFromSearch(o) {
+      if (this.hasDelivery(o.id)) { this.toastMsg('Tidak bisa cancel — sudah ada pengiriman', 'error'); return; }
+      const reason = prompt('Masukkan alasan CANCEL ORDER ' + o.order_no + ':');
+      if (!reason || !reason.trim()) { this.toastMsg('Alasan cancel wajib diisi', 'error'); return; }
+      try {
+        await DB.update('orders', o.id, { status: 'cancelled', cancel_reason: reason.trim(), cancelled_at: new Date().toISOString(), cancelled_by: this.currentUser?.id });
+        await this.reload();
+        this.toastMsg('Order ' + o.order_no + ' dibatalkan');
+      } catch (e) { this.toastMsg('Gagal cancel order: ' + (e?.message || e), 'error'); }
+    },
+
+    openOrderDetail(o) { this.orderDetailModal = { show: true, data: o }; },
+    get orderDetailDeliveries() {
+      if (!this.orderDetailModal.data) return [];
+      return this.deliveries.filter(d => Number(d.order_id) === Number(this.orderDetailModal.data.id)).sort((a, b) => b.id - a.id);
+    },
+    openEditOrderFromDetail() {
+      const o = this.orderDetailModal.data;
+      this.orderDetailModal.show = false;
+      this.openEditOrder(o);
+    },
+
+    get filteredOrders() {
+      const u = this.currentUser;
+      if (!u) return [];
+      let list = this.orders.slice();
+      if (u.role === 'customer') {
+        const assigned = Array.isArray(u.assigned_sites) ? u.assigned_sites : [];
+        const assignedSet = new Set(assigned.map(v => String(v || '').trim().toLowerCase()));
+        list = list.filter(o => assignedSet.has(String(o.site_no || '').trim().toLowerCase()));
+      }
+      if (this.sFilter.q) {
+        const q = String(this.sFilter.q || '').trim().toLowerCase();
+        list = list.filter(o =>
+          String(o.order_no || '').toLowerCase().includes(q) ||
+          String(o.site_no || '').toLowerCase().includes(q) ||
+          String(o.project_name || '').toLowerCase().includes(q) ||
+          String(o.po_no || '').toLowerCase().includes(q)
+        );
+      }
+      if (this.sFilter.plant_id) list = list.filter(o => Number(o.plant_id) === Number(this.sFilter.plant_id));
+      if (this.sFilter.mutu_id) list = list.filter(o => Number(o.mutu_id) === Number(this.sFilter.mutu_id));
+      if (this.sFilter.status) {
+        const wantedStatus = String(this.sFilter.status).trim().toLowerCase();
+        list = list.filter(o => String(o.status || 'scheduled').trim().toLowerCase() === wantedStatus);
+      }
+      return list.sort((a, b) => b.id - a.id);
+    },
+
+    get filteredDeliveries() {
+      const u = this.currentUser;
+      if (!u) return [];
+      let list = this.deliveries.slice();
+      if (u.role === 'customer') {
+        const assigned = Array.isArray(u.assigned_sites) ? u.assigned_sites : [];
+        const assignedSet = new Set(assigned.map(v => String(v || '').trim().toLowerCase()));
+        const allowedOrderIds = new Set(this.orders
+          .filter(o => assignedSet.has(String(o.site_no || '').trim().toLowerCase()))
+          .map(o => String(o.id)));
+        list = list.filter(d => allowedOrderIds.has(String(d.order_id)));
+      }
+      const q = String(this.adFilter.q || '').trim().toLowerCase();
+      if (q) {
+        list = list.filter(d => {
+          const o = this.orderById(d.order_id) || {};
+          const fields = [o.order_no, o.site_no, o.project_name, o.po_no, d.sj_no, d.truck_no, d.driver_name];
+          return fields.some(v => String(v == null ? '' : v).trim().toLowerCase().includes(q));
+        });
+      }
+      if (this.adFilter.plant_id) {
+        const selectedPlant = String(this.adFilter.plant_id).trim();
+        list = list.filter(d => {
+          const o = this.orderById(d.order_id) || {};
+          return String(o.plant_id == null ? '' : o.plant_id).trim() === selectedPlant;
+        });
+      }
+      if (this.adFilter.status) {
+        const wantedStatus = String(this.adFilter.status).trim().toLowerCase();
+        list = list.filter(d => String(d.status || 'delivered').trim().toLowerCase() === wantedStatus);
+      }
+      if (this.adFilter.date_from) {
+        const from = String(this.adFilter.date_from).slice(0, 10);
+        list = list.filter(d => String(d.delivery_date || '').slice(0, 10) >= from);
+      }
+      if (this.adFilter.date_to) {
+        const to = String(this.adFilter.date_to).slice(0, 10);
+        list = list.filter(d => String(d.delivery_date || '').slice(0, 10) <= to);
+      }
+      return list.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+    },
+
+    /* ─────────── MARKETING ─────────── */
+    get marketingSites() {
+      let list = this.prospects.filter(p => p.site_no && p.site_no_status === 'complete');
+      if (this.mktFilter.q) {
+        const q = this.mktFilter.q.toLowerCase();
+        list = list.filter(p => (p.site_no || '').toLowerCase().includes(q) || (p.project_name || '').toLowerCase().includes(q));
+      }
+      return list.sort((a, b) => (a.site_no || '').localeCompare(b.site_no || ''));
+    },
+    get mktSuggestions() {
+      const q = (this.mktFilter.siteSearch || '').trim().toLowerCase();
+      if (!q) return [];
+      return this.prospects
+        .filter(p => p.site_no && p.site_no_status === 'complete')
+        .filter(p =>
+          (p.site_no || '').toLowerCase().includes(q) ||
+          (p.project_name || '').toLowerCase().includes(q)
+        )
+        .sort((a, b) => (a.site_no || '').localeCompare(b.site_no || ''))
+        .slice(0, 20);
+    },
+    get mktSelectedSite() {
+      if (!this.mktFilter.site_no) return null;
+      return this.prospects.find(p => p.site_no === this.mktFilter.site_no) || null;
+    },
     get mktStats() {
-      const s = this.mktSelectedSite; if (!s) return { hasLimit: false, qty_po: 0, totalOrdered: 0, totalDelivered: 0, remainPO: 0 };
-      const qtyPo = Number(s.qty_po) || 0; const hasLimit = qtyPo > 0;
-      const ords = this.mktOrders.filter(o => o.status !== 'cancelled');
-      const totalOrdered = ords.reduce((a, o) => a + (Number(o.qty_order) || 0), 0);
-      const totalDelivered = this.mktDeliveries.filter(d => (d.status || 'delivered') === 'delivered').reduce((a, d) => a + (Number(d.qty) || 0), 0);
-      return { hasLimit, qty_po: qtyPo, totalOrdered, totalDelivered, remainPO: hasLimit ? qtyPo - totalOrdered : 0 };
+      if (!this.mktSelectedSite) return { qty_po: 0, totalOrdered: 0, totalDelivered: 0, remainPO: 0, hasLimit: false };
+      const site_no = this.mktSelectedSite.site_no;
+      const qty_po = Number(this.mktSelectedSite.qty_po) || 0;
+      const orders = this.orders.filter(o => o.site_no === site_no && o.status !== 'cancelled');
+      const totalOrdered = orders.reduce((s, o) => s + (Number(o.qty_order) || 0), 0);
+      const orderIds = orders.map(o => Number(o.id));
+      const delivs = this.deliveries.filter(d => orderIds.includes(Number(d.order_id)) && (d.status || 'delivered') === 'delivered');
+      const totalDelivered = delivs.reduce((s, d) => s + (Number(d.qty) || 0), 0);
+      return {
+        qty_po, totalOrdered, totalDelivered,
+        remainPO: qty_po > 0 ? (qty_po - totalOrdered) : 0,
+        hasLimit: qty_po > 0,
+      };
+    },
+    get mktOrders() {
+      if (!this.mktSelectedSite) return [];
+      return this.orders.filter(o => o.site_no === this.mktSelectedSite.site_no).sort((a, b) => b.id - a.id);
+    },
+    get mktDeliveries() {
+      if (!this.mktSelectedSite) return [];
+      const orderIds = this.mktOrders.map(o => Number(o.id));
+      return this.deliveries.filter(d => orderIds.includes(Number(d.order_id))).sort((a, b) => b.id - a.id);
     },
 
-    // ═══════════════════════════════════════════════════════════
-    // KELOLA USER (EDIT USER FIX)
-    // ═══════════════════════════════════════════════════════════
-    async addUser() {
-      try {
-        const payload = { username: this.uForm.username, name: this.uForm.name, email: this.uForm.email || '', password: this.uForm.password, role: this.uForm.role, plant_id: this.uForm.plant_id || null, assigned_sites: this.uForm.role === 'customer' ? (this.uForm.assigned_sites || []) : [], permissions: this.defaultPermsFor(this.uForm.role), is_active: true, created_at: new Date().toISOString() };
-        const { error } = await supabaseClient.from('users').insert(payload);
-        if (error) throw error;
-        this.toast = 'User berhasil ditambahkan'; this.toastType = 'success'; this.uForm = { assigned_sites: [] }; await this.refreshData();
-      } catch (e) { this.toast = 'Gagal tambah user: ' + (e.message || e); this.toastType = 'error'; }
+    onMktSearchInput() {
+      const q = (this.mktFilter.siteSearch || '').trim();
+      this.mktSuggestOpen = q.length > 0;
+      if (!q) { this.mktFilter.site_no = ''; return; }
+      const exact = this.prospects.find(p =>
+        p.site_no && p.site_no_status === 'complete' &&
+        String(p.site_no).toLowerCase() === q.toLowerCase()
+      );
+      this.mktFilter.site_no = exact ? exact.site_no : '';
     },
-    
+    onMktSearchEnter() {
+      const q = (this.mktFilter.siteSearch || '').trim();
+      if (!q) return;
+      const exact = this.prospects.find(p =>
+        p.site_no && p.site_no_status === 'complete' &&
+        String(p.site_no).toLowerCase() === q.toLowerCase()
+      );
+      if (exact) { this.selectMktSite(exact); return; }
+      if (this.mktSuggestions.length > 0) this.selectMktSite(this.mktSuggestions[0]);
+    },
+    selectMktSite(s) {
+      this.mktFilter.site_no = s.site_no;
+      this.mktFilter.siteSearch = s.site_no;
+      this.mktSuggestOpen = false;
+    },
+    resetMktSearch() {
+      this.mktFilter.site_no = '';
+      this.mktFilter.siteSearch = '';
+      this.mktSuggestOpen = false;
+    },
+
+    /* ─────────── PROPOSE / APPROVAL SITE NO ─────────── */
+    get pendingProposals() { return this.prospects.filter(p => p.site_no_status === 'propose_site_no' && p.source !== 'customer_repeat'); },
+    get propVisitMutuLabel() {
+      if (!this.propModal.data?.id) return '-';
+      const v = this.visits.find(x => Number(x.prospect_id) === Number(this.propModal.data.id));
+      if (!v?.mutu_id) return 'Belum ada mutu dari Visit';
+      const m = this.mutuList.find(x => Number(x.id) === Number(v.mutu_id));
+      return m ? `${m.code} — ${m.name}` : '-';
+    },
+    get editPropVisitMutuLabel() {
+      if (!this.editPropModal.prospectId) return '-';
+      const v = this.visits.find(x => Number(x.prospect_id) === Number(this.editPropModal.prospectId));
+      if (!v?.mutu_id) return 'Belum ada mutu dari Visit';
+      const m = this.mutuList.find(x => Number(x.id) === Number(v.mutu_id));
+      return m ? `${m.code} — ${m.name}` : '-';
+    },
+
+    openPropose(p) {
+      this.propModal = { show: true, data: p };
+      this.propForm = { site_no: '', po_no: '', qty_po: 0, mutu: [], plant_ids: [] };
+    },
+    async savePropose() {
+      if (!this.propForm.site_no || !this.propForm.po_no || !this.propForm.qty_po || this.propForm.mutu.length === 0) {
+        this.toastMsg('Lengkapi Site No, PO No, Qty PO, dan Mutu', 'error'); return;
+      }
+      const p = this.propModal.data;
+      const newPropose = {
+        prospect_id: p.id, project_name: p.project_name,
+        address: p.address, pic_project: p.pic_name, pic_contact: p.pic_contact,
+        sales_visit_id: p.sales_visit_id, site_no: this.propForm.site_no,
+        po_no: this.propForm.po_no,
+        qty_po: Number(this.propForm.qty_po) || 0,
+        mutu: this.propForm.mutu.map(Number),
+        plant_ids: (this.propForm.plant_ids || []).map(Number),
+        status: 'complete', created_by: this.currentUser?.id,
+        created_at: new Date().toISOString(),
+      };
+      try {
+        await DB.insert('propose', newPropose);
+        await DB.update('prospects', p.id, {
+          site_no: this.propForm.site_no,
+          po_no: this.propForm.po_no,
+          qty_po: Number(this.propForm.qty_po) || 0,
+          site_no_status: 'complete',
+          site_no_completed_at: new Date().toISOString(),
+        });
+        await this.reload();
+        this.propModal.show = false;
+        this.toastMsg('Site No ' + this.propForm.site_no + ' disetujui (Qty PO: ' + this.fmt(this.propForm.qty_po) + ' m³)');
+      } catch (e) { this.toastMsg('Gagal simpan propose: ' + (e?.message || e), 'error'); }
+    },
+
+    openEditPropose(p) {
+      const pr = this.propose.find(x => Number(x.prospect_id) === Number(p.id));
+      this.editPropModal = { show: true, prospectId: p.id, project_name: p.project_name, address: p.address };
+      this.editPropForm = {
+        site_no: p.site_no || (pr?.site_no || ''),
+        po_no: p.po_no || (pr?.po_no || ''),
+        qty_po: Number(p.qty_po || pr?.qty_po || 0),
+        mutu: (pr?.mutu || []).map(Number),
+        plant_ids: (pr?.plant_ids || []).map(Number),
+      };
+    },
+    async saveEditPropose() {
+      if (!this.editPropForm.site_no || !this.editPropForm.po_no || !this.editPropForm.qty_po) {
+        this.toastMsg('Site No, PO No, dan Qty PO wajib diisi', 'error'); return;
+      }
+      const pId = this.editPropModal.prospectId;
+      const p = this.prospects.find(x => Number(x.id) === Number(pId));
+      if (!p) return;
+      try {
+        await DB.update('prospects', pId, {
+          site_no: this.editPropForm.site_no,
+          po_no: this.editPropForm.po_no,
+          qty_po: Number(this.editPropForm.qty_po) || 0,
+        });
+        const existing = this.propose.find(x => Number(x.prospect_id) === Number(pId));
+        const payload = {
+          prospect_id: pId,
+          project_name: p.project_name, address: p.address,
+          pic_project: p.pic_name, pic_contact: p.pic_contact,
+          sales_visit_id: p.sales_visit_id,
+          site_no: this.editPropForm.site_no, po_no: this.editPropForm.po_no,
+          qty_po: Number(this.editPropForm.qty_po) || 0,
+          mutu: this.editPropForm.mutu.map(Number),
+          plant_ids: this.editPropForm.plant_ids.map(Number),
+          status: 'complete',
+          created_by: this.currentUser?.id,
+          created_at: new Date().toISOString(),
+        };
+        if (existing) {
+          await DB.update('propose', existing.id, { ...payload, updated_at: new Date().toISOString() });
+        } else {
+          await DB.insert('propose', payload);
+        }
+        await this.reload();
+        this.editPropModal.show = false;
+        this.toastMsg('Site No berhasil diupdate');
+      } catch (e) { this.toastMsg('Gagal update propose: ' + (e?.message || e), 'error'); }
+    },
+
+    async toggleHoldSite(p) {
+      if (!this.currentUser || this.currentUser.role !== 'owner') {
+        this.toastMsg('Hanya Owner yang bisa Hold/Release', 'error'); return;
+      }
+      if (p.site_no_status === 'complete') {
+        const reason = prompt('Alasan HOLD Site No ' + (p.site_no || '') + '?\n\nSales tidak akan bisa input order / jadwal cor untuk site ini.');
+        if (!reason || !reason.trim()) { this.toastMsg('Alasan hold wajib diisi', 'error'); return; }
+        try {
+          await DB.update('prospects', p.id, {
+            site_no_status: 'held',
+            hold_reason: reason.trim(),
+            held_at: new Date().toISOString(),
+            held_by: this.currentUser.id,
+          });
+          await this.reload();
+          this.toastMsg('Site No ' + p.site_no + ' di-HOLD');
+        } catch (e) { this.toastMsg('Gagal hold site: ' + (e?.message || e), 'error'); }
+      } else if (p.site_no_status === 'held') {
+        if (!confirm('Release Site No ' + p.site_no + '?\nSales bisa input order kembali.')) return;
+        try {
+          await DB.update('prospects', p.id, {
+            site_no_status: 'complete',
+            hold_reason: '',
+            released_at: new Date().toISOString(),
+          });
+          await this.reload();
+          this.toastMsg('Site No ' + p.site_no + ' di-Release');
+        } catch (e) { this.toastMsg('Gagal release site: ' + (e?.message || e), 'error'); }
+      }
+    },
+
+    /* ─────────── USER MANAGEMENT ─────────── */
     openEditUser(u) {
-      this.euForm = { ...u }; 
-      this.editUserModal = { show: true };
+      this.editUserModal = { show: true, userId: u.id };
+      this.euForm = {
+        username: u.username || '', name: u.name || '', email: u.email || '',
+        password: u.password || '', role: u.role || 'sales',
+        plant_id: u.plant_id || '',
+        assigned_sites: Array.isArray(u.assigned_sites) ? [...u.assigned_sites] : [],
+        is_active: u.is_active !== false, avatar: u.avatar || null,
+      };
+      this.showEditUserPw = false;
     },
-    
     async saveEditUser() {
+      const uid = (this.euForm.username || '').trim().toLowerCase();
+      if (!uid || !/^[a-z0-9_.\-]+$/.test(uid)) { this.toastMsg('User ID tidak valid', 'error'); return; }
+      if (!this.euForm.name.trim()) { this.toastMsg('Nama wajib diisi', 'error'); return; }
+      if ((this.euForm.password || '').length < 6) { this.toastMsg('Password minimal 6 karakter', 'error'); return; }
+      if (this.users.find(x => Number(x.id) !== Number(this.editUserModal.userId) && (x.username || '').toLowerCase() === uid)) {
+        this.toastMsg('User ID sudah dipakai', 'error'); return;
+      }
+      const mail = (this.euForm.email || '').trim().toLowerCase();
+      if (mail && this.users.find(x => Number(x.id) !== Number(this.editUserModal.userId) && (x.email || '').toLowerCase() === mail)) {
+        this.toastMsg('Email sudah dipakai', 'error'); return;
+      }
+      if (Number(this.editUserModal.userId) === Number(this.currentUser.id) && !this.euForm.is_active) {
+        this.toastMsg('Tidak bisa nonaktifkan akun sendiri', 'error'); return;
+      }
       try {
-        const payload = { username: this.euForm.username, name: this.euForm.name, email: this.euForm.email || '', role: this.euForm.role };
-        if (this.euForm.password) payload.password = this.euForm.password;
-
-        const { error } = await supabaseClient.from('users').update(payload).eq('id', this.euForm.id);
-        if (error) throw error;
-        
-        this.toast = 'User berhasil diperbarui'; this.toastType = 'success';
-        this.editUserModal.show = false; await this.refreshData();
-        
-        if (this.euForm.id === this.currentUser.id) this.currentUser = { ...this.currentUser, ...payload };
-      } catch (e) { this.toast = 'Gagal update user: ' + (e.message || e); this.toastType = 'error'; }
+        await DB.update('users', this.editUserModal.userId, {
+          username: uid, name: this.euForm.name, email: mail,
+          password: this.euForm.password, role: this.euForm.role,
+          plant_id: this.euForm.plant_id ? Number(this.euForm.plant_id) : null,
+          assigned_sites: this.euForm.role === 'customer' ? (this.euForm.assigned_sites || []) : [],
+          is_active: this.euForm.is_active,
+        });
+        await this.reload();
+        if (Number(this.editUserModal.userId) === Number(this.currentUser.id)) {
+          const updated = this.users.find(u => Number(u.id) === Number(this.editUserModal.userId));
+          if (updated) {
+            this.currentUser = updated;
+            localStorage.setItem('beton_current', JSON.stringify(updated));
+          }
+        }
+        this.editUserModal.show = false;
+        this.toastMsg('User diupdate');
+      } catch (e) { this.toastMsg('Gagal update user: ' + (e?.message || e), 'error'); }
     },
 
-    togglePwVisible(id) { this.pwVisible = { ...this.pwVisible, [id]: !this.pwVisible[id] }; },
-    async toggleUserActive(id) {
+    /* ─────────── MASTER DATA EDIT MODALS ─────────── */
+    openEditPlant(p) { this.editPlantModal = { show: true, id: p.id }; this.epForm = { code: p.code || '', name: p.name || '', address: p.address || '', phone: p.phone || '' }; },
+    async saveEditPlant() {
       try {
-        const u = this.users.find(x => x.id === id); if (!u) return;
-        const { error } = await supabaseClient.from('users').update({ is_active: u.is_active === false }).eq('id', id);
-        if (error) throw error; await this.refreshData();
-      } catch (e) { this.toast = 'Gagal: ' + (e.message || e); this.toastType = 'error'; }
+        await DB.update('plants', this.editPlantModal.id, { ...this.epForm });
+        await this.reload();
+        this.editPlantModal.show = false;
+        this.toastMsg('Plant diupdate');
+      } catch (e) { this.toastMsg('Gagal update plant: ' + (e?.message || e), 'error'); }
+    },
+    openEditMutu(m) { this.editMutuModal = { show: true, id: m.id }; this.emForm = { code: m.code || '', name: m.name || '', slump: m.slump || '', price: m.price || 0 }; },
+    async saveEditMutu() {
+      try {
+        await DB.update('mutu', this.editMutuModal.id, { ...this.emForm });
+        await this.reload();
+        this.editMutuModal.show = false;
+        this.toastMsg('Mutu diupdate');
+      } catch (e) { this.toastMsg('Gagal update mutu: ' + (e?.message || e), 'error'); }
+    },
+    openEditCompetitor(c) { this.editKompetitorModal = { show: true, id: c.id }; this.ecForm = { name: c.name || '', address: c.address || '', contact_person: c.contact_person || '', phone: c.phone || '' }; },
+    async saveEditKompetitor() {
+      try {
+        await DB.update('competitors', this.editKompetitorModal.id, { ...this.ecForm });
+        await this.reload();
+        this.editKompetitorModal.show = false;
+        this.toastMsg('Kompetitor diupdate');
+      } catch (e) { this.toastMsg('Gagal update kompetitor: ' + (e?.message || e), 'error'); }
+    },
+    openEditAddress(a) { this.editAlamatModal = { show: true, id: a.id }; this.eaForm = { label: a.label || '', address: a.address || '', city: a.city || '', province: a.province || '', type: a.type || 'site' }; },
+    async saveEditAddress() {
+      try {
+        await DB.update('addresses', this.editAlamatModal.id, { ...this.eaForm });
+        await this.reload();
+        this.editAlamatModal.show = false;
+        this.toastMsg('Alamat diupdate');
+      } catch (e) { this.toastMsg('Gagal update alamat: ' + (e?.message || e), 'error'); }
+    },
+
+    /* ─────────── ADD (USER + MASTER) ─────────── */
+    async addUser() {
+      const uid      = (this.uForm.username || '').trim().toLowerCase();
+      const mail     = (this.uForm.email || '').trim().toLowerCase();
+      const name     = (this.uForm.name || '').trim();
+      const password = this.uForm.password || '';
+
+      if (!uid) { this.toastMsg('User ID wajib diisi', 'error'); return; }
+      if (!/^[a-z0-9_.\-]+$/.test(uid)) { this.toastMsg('User ID hanya boleh huruf, angka, titik, underscore, strip', 'error'); return; }
+      if (!name) { this.toastMsg('Nama wajib diisi', 'error'); return; }
+      if (password.length < 6) { this.toastMsg('Password minimal 6 karakter', 'error'); return; }
+      if (!this.uForm.role) { this.toastMsg('Role wajib dipilih', 'error'); return; }
+
+      if (uid === String(this.getDeveloperAccount().username).toLowerCase()) { this.toastMsg('User ID ini dicadangkan untuk akun sistem', 'error'); return; }
+      const validRoles = ['owner', 'admin', 'sales', 'logistik', 'customer'];
+      if (!validRoles.includes(this.uForm.role)) { this.toastMsg('Role tidak valid', 'error'); return; }
+      if (this.users.find(u => (u.username || '').toLowerCase() === uid)) { this.toastMsg('User ID sudah dipakai', 'error'); return; }
+      if (mail && this.users.find(u => (u.email || '').toLowerCase() === mail)) { this.toastMsg('Email sudah dipakai', 'error'); return; }
+
+      const newUser = {
+        username: uid,
+        name: name,
+        email: mail,
+        password: password,
+        role: this.uForm.role,
+        plant_id: this.uForm.plant_id ? Number(this.uForm.plant_id) : null,
+        assigned_sites: this.uForm.role === 'customer' ? (this.uForm.assigned_sites || []) : [],
+        is_active: true,
+        permissions: this.defaultPermsFor(this.uForm.role).slice(),
+      };
+      try {
+        await DB.insert('users', newUser);
+        this.uForm = { username: '', name: '', email: '', password: '', role: '', plant_id: '', assigned_sites: [] };
+        await this.reload();
+        this.toastMsg('User "' + uid + '" berhasil ditambahkan. Akun dapat langsung login.');
+      } catch (e) { this.toastMsg('Gagal tambah user: ' + (e?.message || e), 'error'); }
     },
     async delUser(id) {
-      if (!confirm('Hapus user ini?')) return;
+      const target = this.users.find(u => Number(u.id) === Number(id));
+      if (!target || target.role === 'developer') return;
       try {
-        const { error } = await supabaseClient.from('users').delete().eq('id', id);
-        if (error) throw error; await this.refreshData();
-      } catch (e) { this.toast = 'Gagal hapus: ' + (e.message || e); this.toastType = 'error'; }
+        await DB.remove('users', id);
+        await this.reload();
+      } catch (e) { this.toastMsg('Gagal hapus user: ' + (e?.message || e), 'error'); }
     },
-
-    // ═══════════════════════════════════════════════════════════
-    // MASTER DATA
-    // ═══════════════════════════════════════════════════════════
-    async addPlant() { try { const { error } = await supabaseClient.from('plants').insert(this.plForm); if (error) throw error; this.plForm = {}; await this.refreshData(); } catch (e) { this.toast = 'Gagal: ' + (e.message || e); this.toastType = 'error'; } },
-    openEditPlant(p) { this.epForm = { ...p }; this.editPlantModal = { show: true }; },
-    async saveEditPlant() { try { const { error } = await supabaseClient.from('plants').update(this.epForm).eq('id', this.epForm.id); if (error) throw error; this.editPlantModal.show = false; await this.refreshData(); } catch (e) { this.toast = 'Gagal: ' + (e.message || e); this.toastType = 'error'; } },
-    
-    async addMutu() { try { const { error } = await supabaseClient.from('mutu').insert(this.mForm); if (error) throw error; this.mForm = {}; await this.refreshData(); } catch (e) { this.toast = 'Gagal: ' + (e.message || e); this.toastType = 'error'; } },
-    openEditMutu(m) { this.emForm = { ...m }; this.editMutuModal = { show: true }; },
-    async saveEditMutu() { try { const { error } = await supabaseClient.from('mutu').update(this.emForm).eq('id', this.emForm.id); if (error) throw error; this.editMutuModal.show = false; await this.refreshData(); } catch (e) { this.toast = 'Gagal: ' + (e.message || e); this.toastType = 'error'; } },
-    
-    async addCompetitor() { try { const { error } = await supabaseClient.from('competitors').insert(this.cForm); if (error) throw error; this.cForm = {}; await this.refreshData(); } catch (e) { this.toast = 'Gagal: ' + (e.message || e); this.toastType = 'error'; } },
-    openEditCompetitor(c) { this.ecForm = { ...c }; this.editKompetitorModal = { show: true }; },
-    async saveEditCompetitor() { try { const { error } = await supabaseClient.from('competitors').update(this.ecForm).eq('id', this.ecForm.id); if (error) throw error; this.editKompetitorModal.show = false; await this.refreshData(); } catch (e) { this.toast = 'Gagal: ' + (e.message || e); this.toastType = 'error'; } },
-    
-    async addAddress() { try { const { error } = await supabaseClient.from('addresses').insert(this.aForm); if (error) throw error; this.aForm = {}; await this.refreshData(); } catch (e) { this.toast = 'Gagal: ' + (e.message || e); this.toastType = 'error'; } },
-    openEditAddress(a) { this.eaForm = { ...a }; this.editAlamatModal = { show: true }; },
-    async saveEditAddress() { try { const { error } = await supabaseClient.from('addresses').update(this.eaForm).eq('id', this.eaForm.id); if (error) throw error; this.editAlamatModal.show = false; await this.refreshData(); } catch (e) { this.toast = 'Gagal: ' + (e.message || e); this.toastType = 'error'; } },
-    
+    async addPlant() {
+      try {
+        await DB.insert('plants', { ...this.plForm, is_active: 1 });
+        this.plForm = { code: '', name: '', address: '', phone: '' };
+        await this.reload();
+        this.toastMsg('Plant ditambahkan');
+      } catch (e) { this.toastMsg('Gagal tambah plant: ' + (e?.message || e), 'error'); }
+    },
+    async addMutu() {
+      try {
+        await DB.insert('mutu', { ...this.mForm, is_active: 1 });
+        this.mForm = { code: '', name: '', slump: '', price: 0 };
+        await this.reload();
+        this.toastMsg('Mutu ditambahkan');
+      } catch (e) { this.toastMsg('Gagal tambah mutu: ' + (e?.message || e), 'error'); }
+    },
+    async addCompetitor() {
+      try {
+        await DB.insert('competitors', { ...this.cForm });
+        this.cForm = { name: '', address: '', contact_person: '', phone: '' };
+        await this.reload();
+        this.toastMsg('Kompetitor ditambahkan');
+      } catch (e) { this.toastMsg('Gagal tambah kompetitor: ' + (e?.message || e), 'error'); }
+    },
+    async addAddress() {
+      try {
+        await DB.insert('addresses', { ...this.aForm });
+        this.aForm = { label: '', address: '', city: '', province: '', type: 'site' };
+        await this.reload();
+        this.toastMsg('Alamat ditambahkan');
+      } catch (e) { this.toastMsg('Gagal tambah alamat: ' + (e?.message || e), 'error'); }
+    },
     async delItem(table, id) {
-      if (!confirm('Hapus data ini?')) return;
-      try { const { error } = await supabaseClient.from(table).delete().eq('id', id); if (error) throw error; await this.refreshData(); } catch (e) { this.toast = 'Gagal hapus: ' + (e.message || e); this.toastType = 'error'; }
-    },
-
-    // ═══════════════════════════════════════════════════════════
-    // LOG AKTIVITAS
-    // ═══════════════════════════════════════════════════════════
-    get filteredLogs() {
-      const q = (this.logFilter.q || '').toLowerCase();
-      return this.logs.filter(l => {
-        if (this.logFilter.status && l.status !== this.logFilter.status) return false;
-        if (q && !((l.username || '').toLowerCase().includes(q) || (l.name || '').toLowerCase().includes(q))) return false;
-        return true;
-      });
-    },
-
-    // ═══════════════════════════════════════════════════════════
-    // PROFIL
-    // ═══════════════════════════════════════════════════════════
-    async uploadAvatar(ev) {
+      if (!confirm('Hapus item ini?')) return;
       try {
-        const file = ev.target.files?.[0]; if (!file) return;
-        if (file.size > 500 * 1024) { this.toast = 'Ukuran foto maksimal 500 KB'; this.toastType = 'error'; return; }
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          const dataUrl = e.target.result;
-          await supabaseClient.from('users').update({ avatar: dataUrl }).eq('id', this.currentUser.id);
-          this.currentUser.avatar = dataUrl; await this.refreshData();
-        };
-        reader.readAsDataURL(file);
-      } catch (e) { this.toast = 'Gagal upload: ' + (e.message || e); this.toastType = 'error'; }
+        await DB.remove(table, id);
+        await this.reload();
+        this.toastMsg('Item dihapus');
+      } catch (e) { this.toastMsg('Gagal hapus: ' + (e?.message || e), 'error'); }
     },
-    async removeAvatar() { try { await supabaseClient.from('users').update({ avatar: null }).eq('id', this.currentUser.id); this.currentUser.avatar = null; await this.refreshData(); } catch (e) { this.toast = 'Gagal: ' + (e.message || e); this.toastType = 'error'; } },
-    async changeMyPassword() {
-      try {
-        if (this.profileForm.new_password !== this.profileForm.confirm_password) { this.toast = 'Konfirmasi password tidak cocok'; this.toastType = 'error'; return; }
-        if (this.profileForm.old_password !== this.currentUser.password) { this.toast = 'Password lama salah'; this.toastType = 'error'; return; }
-        const { error } = await supabaseClient.from('users').update({ password: this.profileForm.new_password }).eq('id', this.currentUser.id);
-        if (error) throw error;
-        this.toast = 'Password berhasil diubah'; this.toastType = 'success'; this.profileForm = { old_password: '', new_password: '', confirm_password: '' };
-      } catch (e) { this.toast = 'Gagal: ' + (e.message || e); this.toastType = 'error'; }
-    },
-
-    // ═══════════════════════════════════════════════════════════
-    // ONE-CLICK ORDER (customer)
-    // ═══════════════════════════════════════════════════════════
-    openNewCustomerOrder() { this.ocModal = { show: true, mode: 'new' }; },
-    openOneClickOrder(o) { this.ocModal = { show: true, mode: 'repeat', order: o }; },
   };
 }
 
+// Ekspos global supaya Alpine bisa akses via x-data="app()"
 window.app = app;
