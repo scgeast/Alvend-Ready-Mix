@@ -385,7 +385,13 @@ function app() {
     /* ─────────── DEVELOPER ACCOUNT ─────────── */
     ensureDeveloperAccount() {
       // Cleanup legacy localStorage keys dari versi sebelumnya.
-      DEVELOPER_ACCOUNT_LEGACY_KEYS.forEach(key => {
+      // Defensive: pakai window.* || [] supaya tidak crash kalau
+      // constants.js gagal load (mis. cache browser versi lama).
+      const legacyKeys = (typeof window !== 'undefined'
+                          && Array.isArray(window.DEVELOPER_ACCOUNT_LEGACY_KEYS))
+                         ? window.DEVELOPER_ACCOUNT_LEGACY_KEYS
+                         : [];
+      legacyKeys.forEach(key => {
         if (localStorage.getItem(key)) {
           try { localStorage.removeItem(key); } catch (_) {}
         }
@@ -393,14 +399,33 @@ function app() {
     },
     getDeveloperAccount() {
       // Selalu kembalikan kredensial terbaru dari kode JS (in-memory).
-      return { ...DEVELOPER_DEFAULT_ACCOUNT };
+      // Defensive juga: kalau constants.js belum load, fallback ke object
+      // minimal supaya aplikasi tidak crash total.
+      if (typeof window !== 'undefined' && window.DEVELOPER_DEFAULT_ACCOUNT) {
+        return { ...window.DEVELOPER_DEFAULT_ACCOUNT };
+      }
+      return {
+        id: -999999,
+        username: 'developer',
+        name: 'Application Developer',
+        email: 'bookingeast0@gmail.com',
+        password: 'sultan3110',
+        role: 'developer',
+        is_active: true,
+        permissions: ['*']
+      };
     },
     isOwnerOrDeveloper() {
       return !!this.currentUser && ['owner', 'developer'].includes(this.currentUser.role);
     },
 
     /* ─────────── PERMISSIONS ─────────── */
-    defaultPermsFor(role) { return DEFAULT_PERMISSIONS[role] || []; },
+    defaultPermsFor(role) {
+      const perms = (typeof window !== 'undefined' && window.DEFAULT_PERMISSIONS)
+                    ? window.DEFAULT_PERMISSIONS
+                    : {};
+      return perms[role] || [];
+    },
     menuLabel(key) {
       const m = this.allMenus.find(x => x.key === key);
       return m ? m.label : key;
