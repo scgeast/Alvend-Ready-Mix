@@ -526,19 +526,44 @@ function app() {
     },
 
     async saveProspek() {
+      const yy = new Date().toISOString().slice(0, 7).replace('-', '');
+      const seq = this.prospects.length + 1;
+      const no = `PRS/${yy}/${String(seq).padStart(4, '0')}`;
+      const comp = this.competitors.find(c => Number(c.id) === Number(this.pForm.competitor_id));
+      
+      // ✅ PERBAIKAN: Memastikan payload sesuai dengan kolom tabel 'prospects' di Supabase
+      const newItem = {
+        prospect_no: no,
+        project_name: this.pForm.project_name, 
+        address: this.pForm.address,
+        pic_name: this.pForm.pic_name, 
+        pic_contact: this.pForm.pic_contact,
+        construction_type: this.pForm.construction_type,
+        // Pastikan ID dikirim sebagai angka (integer), bukan string kosong
+        competitor_id: comp ? Number(comp.id) : null,
+        competitor_name: comp?.name || this.pForm.competitor_other || '',
+        
+        // Default value sistem
+        sales_id: this.currentUser?.id || null, 
+        sales_visit_id: null,
+        site_no: null, 
+        site_no_status: 'waiting', 
+        po_no: null, 
+        qty_po: 0,
+        visit_status: 'not_yet', 
+        final_status: 'open',
+        source: 'internal', 
+        created_at: new Date().toISOString(),
+      };
+      
       try {
-        const payload = { ...this.pForm, source: 'internal', site_no_status: 'waiting', created_by: this.currentUser.id, created_at: new Date().toISOString() };
-        // ✅ FIX: prospects
-        const { error } = await supabaseClient.from('prospects').insert(payload);
-        if (error) throw error;
-        this.toast = 'Prospek berhasil disimpan';
-        this.toastType = 'success';
-        this.pForm = {};
-        await this.refreshData();
-        this.nav('dataProspek');
-      } catch (e) {
-        this.toast = 'Gagal menyimpan prospek: ' + (e.message || e);
-        this.toastType = 'error';
+        await DB.insert('prospects', newItem);
+        await this.reload();
+        this.pForm = { project_name: '', address: '', pic_name: '', pic_contact: '', construction_type: '', competitor_id: '', competitor_other: '' };
+        this.toastMsg('Prospek disimpan: ' + no);
+        await this.nav('dataProspek');
+      } catch (e) { 
+        this.toastMsg('Gagal simpan: ' + (e?.message || e), 'error'); 
       }
     },
 
