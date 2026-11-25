@@ -442,6 +442,9 @@ function app() {
     // REFRESH DATA
     // ═══════════════════════════════════════════════════════════
     async refreshData() {
+      if (this.isRefreshing) return; // Mencegah spam klik
+      this.isRefreshing = true;
+      
       try {
         const [usersRes, plantsRes, mutuRes, compRes, addrRes, prospRes, ordRes, delivRes, logRes] =
           await Promise.all([
@@ -475,18 +478,28 @@ function app() {
           this.unreadNotifCount = 0;
         }
 
-        // Sinkron currentUser dengan data terbaru
+        // Sinkron currentUser
         if (this.currentUser && this.currentUser.id !== 'developer') {
           const fresh = this.users.find(u => u.id === this.currentUser.id);
           if (fresh) this.currentUser = fresh;
         }
+
+        // ✅ TAMBAHAN: Tampilkan notifikasi sukses
+        this.toast = 'Data berhasil diperbarui!';
+        this.toastType = 'success';
+        
+        // Hilangkan notifikasi setelah 3 detik
+        setTimeout(() => { this.toast = ''; }, 3000);
+
       } catch (e) {
         console.error('refreshData', e);
         this.toast = 'Gagal memuat data: ' + (e.message || e);
         this.toastType = 'error';
+      } finally {
+        this.isRefreshing = false;
       }
     },
-
+    
     // ═══════════════════════════════════════════════════════════
     // HELPERS
     // ═══════════════════════════════════════════════════════════
