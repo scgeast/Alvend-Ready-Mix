@@ -501,7 +501,13 @@ function app() {
       this.competitors = competitors; this.addresses = addresses;
       this.prospects = prospects; this.orders = orders; this.deliveries = deliveries;
       this.visits = visits; this.propose = propose; this.notifications = notifications;
-      this.loginLogs = await pruneActivityLogsAsync();
+      // Hanya SELECT log aktivitas (tanpa delete) saat reload dari Realtime.
+      // Delete log >24 jam hanya dilakukan saat login/pindah menu (pruneActivityLogsAsync).
+      if (typeof window.getActivityLogsAsync === 'function') {
+        this.loginLogs = await window.getActivityLogsAsync();
+      } else {
+        this.loginLogs = await pruneActivityLogsAsync();
+      }
     },
 
     normalizeData() {
