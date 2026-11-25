@@ -35,6 +35,8 @@ function app() {
 
     /* Prospek */
     pForm: { project_name: '', address: '', pic_name: '', pic_contact: '', construction_type: '', competitor_id: '', competitor_other: '' },
+    editProspekModal: { show: false, id: null, prospect_no: '' },
+    epForm: { project_name: '', address: '', pic_name: '', pic_contact: '', construction_type: '', competitor_id: '', competitor_other: '' },
     pFilter: { q: '', visit: '', status: '', source: '' },
 
     /* Order */
@@ -539,10 +541,42 @@ function app() {
 
     /* ─────────── LOOKUPS ─────────── */
     salesName(id)  { return this.users.find(u => Number(u.id) === Number(id))?.name || '-'; },
+    userName(id)   { return this.users.find(u => Number(u.id) === Number(id))?.name || '-'; },
+    userRole(id)   { return this.users.find(u => Number(u.id) === Number(id))?.role || '-'; },
     plantName(id)  { return this.plants.find(p => Number(p.id) === Number(id))?.name || '-'; },
     mutuCode(id)   { return this.mutuList.find(m => Number(m.id) === Number(id))?.code || '-'; },
     orderById(id)  { return this.orders.find(o => Number(o.id) === Number(id)); },
     hasDelivery(orderId) { return this.deliveries.some(d => Number(d.order_id) === Number(orderId)); },
+
+    /* ─────────── AUDIT HELPERS ─────────── */
+    fmtTimestamp(iso) {
+      if (!iso) return '-';
+      try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '-';
+        return d.toLocaleString('id-ID', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        });
+      } catch (_) { return String(iso); }
+    },
+    auditInfo(row, action) {
+      // action: 'created' | 'updated' | 'cancelled' | 'deleted'
+      if (!row) return '';
+      const map = {
+        created:   { byKey: 'created_by',   atKey: 'created_at',   label: 'Dibuat' },
+        updated:   { byKey: 'updated_by',   atKey: 'updated_at',   label: 'Diupdate' },
+        cancelled: { byKey: 'cancelled_by', atKey: 'cancelled_at', label: 'Dibatalkan' },
+        deleted:   { byKey: 'deleted_by',   atKey: 'deleted_at',   label: 'Dihapus' }
+      };
+      const cfg = map[action];
+      if (!cfg) return '';
+      const byId = row[cfg.byKey];
+      const at   = row[cfg.atKey];
+      if (!byId && !at) return '';
+      const who = byId ? this.userName(byId) : 'sistem';
+      return cfg.label + ' oleh ' + who + (at ? ' · ' + this.fmtTimestamp(at) : '');
+    },
 
     statusBadge(s) {
       return {
@@ -801,6 +835,7 @@ function app() {
       const seq = this.prospects.length + 1;
       const no = `PRS/${yy}/${String(seq).padStart(4, '0')}`;
       const comp = this.competitors.find(c => Number(c.id) === Number(this.pForm.competitor_id));
+      const now = new Date().toISOString();
       const newItem = {
         prospect_no: no,
         project_name: this.pForm.project_name, address: this.pForm.address,
@@ -811,7 +846,8 @@ function app() {
         sales_id: this.currentUser.id, sales_visit_id: null,
         site_no: null, site_no_status: 'waiting', po_no: null, qty_po: 0,
         visit_status: 'not_yet', final_status: 'open',
-        source: 'internal', created_at: new Date().toISOString(),
+        source: 'internal', created_at: now,
+        created_by: this.currentUser?.id || null,
       };
       try {
         await DB.insert('prospects', newItem);
@@ -820,6 +856,50 @@ function app() {
         this.toastMsg('Prospek disimpan: ' + no);
         await this.nav('dataProspek');
       } catch (e) { this.toastMsg('Gagal simpan: ' + (e?.message || e), 'error'); }
+    },
+
+    /* ─── EDIT PROSPEK (Owner & Admin only) ─── */
+    isOwnerOrAdmin() {
+      return !!this.currentUser
+          && ['owner', 'developer', 'admin'].includes(this.currentUser.role);
+    },
+    openEditProspek(p) {
+      if (!this.isOwnerOrAdmin()) {
+        this.toastMsg('Hanya Owner/Admin yang bisa edit prospek', 'error');
+        return;
+      }
+      this.editProspekModal = { show: true, id: p.id, prospect_no: p.prospect_no || '-' };
+      this.epForm = {
+        project_name: p.project_name || '',
+        address: p.address || '',
+        pic_name: p.pic_name || '',
+        pic_contact: p.pic_contact || '',
+        construction_type: p.construction_type || '',
+        competitor_id: p.competitor_id || '',
+        competitor_other: (p.competitor_name && !p.competitor_id) ? p.competitor_name : '',
+      };
+    },
+    async saveEditProspek() {
+      if (!this.isOwnerOrAdmin()) {
+        this.toastMsg('Hanya Owner/Admin yang bisa edit prospek', 'error'); return;
+      }
+      const comp = this.competitors.find(c => Number(c.id) === Number(this.epForm.competitor_id));
+      try {
+        await DB.update('prospects', this.editProspekModal.id, {
+          project_name: this.epForm.project_name,
+          address: this.epForm.address,
+          pic_name: this.epForm.pic_name,
+          pic_contact: this.epForm.pic_contact,
+          construction_type: this.epForm.construction_type,
+          competitor_id: comp ? Number(comp.id) : null,
+          competitor_name: comp?.name || this.epForm.competitor_other || '',
+          updated_by: this.currentUser?.id || null,
+          updated_at: new Date().toISOString(),
+        });
+        await this.reload();
+        this.editProspekModal.show = false;
+        this.toastMsg('Prospek diupdate: ' + this.editProspekModal.prospect_no);
+      } catch (e) { this.toastMsg('Gagal update prospek: ' + (e?.message || e), 'error'); }
     },
 
     get filteredProspek() {
@@ -1188,9 +1268,16 @@ function app() {
     },
 
     openDelivery(o) {
+      // Saat order sudah Complete/Finished, hanya Owner/Admin yang boleh
+      // menambah pengiriman baru (untuk koreksi). Sales & role lain diblok.
+      if (this.isOrderFinished(o) && !this.isOwnerOrAdmin()) {
+        this.toastMsg('Order sudah Complete. Hanya Owner/Admin yang bisa menambah pengiriman.', 'error');
+        return;
+      }
       this.dvModal = {
         show: true, order_id: o.id, site_no: o.site_no, remain: o.qty_remain,
         order_no: o.order_no, order_delivery_date: o.delivery_date,
+        isComplete: this.isOrderFinished(o),
       };
       this.dvForm = { sj_no: '', delivery_date: o.delivery_date, truck_no: '', qty: 0, driver_name: '' };
     },
@@ -1227,11 +1314,17 @@ function app() {
 
     openEditDelivery(d) {
       const parentOrder = this.orderById(d.order_id);
-      if (this.isOrderFinished(parentOrder)) { this.toastMsg('Order sudah Complete/Finished. Pengiriman tidak dapat diedit.', 'error'); return; }
+      // Saat order sudah Complete/Finished, hanya Owner/Admin yang boleh edit
+      // (untuk koreksi Truck/Qty/SJ). Sales & role lain diblok.
+      if (this.isOrderFinished(parentOrder) && !this.isOwnerOrAdmin()) {
+        this.toastMsg('Order sudah Complete. Hanya Owner/Admin yang bisa edit pengiriman.', 'error');
+        return;
+      }
       this.editDvModal = {
         show: true, deliveryId: d.id, order_id: d.order_id,
         order_no: this.orderById(d.order_id)?.order_no || '-',
         delivery_date: d.delivery_date,
+        isComplete: this.isOrderFinished(parentOrder),
       };
       this.edvForm = {
         status: d.status || 'delivered',
@@ -1245,7 +1338,12 @@ function app() {
 
     async saveEditDelivery() {
       const parentOrder = this.orderById(this.editDvModal.order_id || this.editDvModal.data?.order_id);
-      if (parentOrder && this.isOrderFinished(parentOrder)) { this.toastMsg('Order sudah Complete/Finished. Pengiriman tidak dapat diedit.', 'error'); this.editDvModal.show = false; return; }
+      // Saat order sudah Complete/Finished, hanya Owner/Admin yang boleh simpan edit
+      if (parentOrder && this.isOrderFinished(parentOrder) && !this.isOwnerOrAdmin()) {
+        this.toastMsg('Order sudah Complete. Hanya Owner/Admin yang bisa edit pengiriman.', 'error');
+        this.editDvModal.show = false;
+        return;
+      }
       const existing = this.deliveries.find(d => Number(d.id) === Number(this.editDvModal.deliveryId));
       if (!existing) return;
 
@@ -1262,16 +1360,24 @@ function app() {
         if (dupe) { this.toastMsg('No SJ sudah dipakai.', 'error'); return; }
       }
       const orderId = existing.order_id;
+      const now = new Date().toISOString();
+      const updatePayload = {
+        status: newStatus,
+        remarks: remarks,
+        sj_no: sjNo || null,
+        truck_no: this.edvForm.truck_no,
+        qty: +this.edvForm.qty,
+        driver_name: this.edvForm.driver_name,
+        updated_at: now,
+        updated_by: this.currentUser?.id || null,
+      };
+      // Kalau status jadi cancelled, catat siapa & kapan
+      if (newStatus === 'cancelled') {
+        updatePayload.cancelled_at = now;
+        updatePayload.cancelled_by = this.currentUser?.id || null;
+      }
       try {
-        await DB.update('deliveries', this.editDvModal.deliveryId, {
-          status: newStatus,
-          remarks: remarks,
-          sj_no: sjNo || null,
-          truck_no: this.edvForm.truck_no,
-          qty: +this.edvForm.qty,
-          driver_name: this.edvForm.driver_name,
-          updated_at: new Date().toISOString(),
-        });
+        await DB.update('deliveries', this.editDvModal.deliveryId, updatePayload);
         await this.recalcOrderStatus(orderId);
         await this.reload();
         this.editDvModal.show = false;
@@ -1358,7 +1464,9 @@ function app() {
         await DB.update('orders', o.id, {
           mutu_id: Number(this.eoForm.mutu_id), plant_id: Number(this.eoForm.plant_id),
           delivery_date: this.eoForm.delivery_date, pouring_time: this.eoForm.pouring_time,
-          qty_order: qty, qty_remain: remain, metode_cor: this.eoForm.metode_cor, status
+          qty_order: qty, qty_remain: remain, metode_cor: this.eoForm.metode_cor, status,
+          updated_by: this.currentUser?.id || null,
+          updated_at: new Date().toISOString(),
         });
         await this.reload();
         this.editOrderModal.show = false;
