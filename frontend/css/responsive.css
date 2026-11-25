@@ -150,4 +150,3 @@ button, .btn-primary, .btn-secondary, .btn-success, .btn-danger, .btn-warning { 
   .modal-box { width: calc(100vw - 12px) !important; }
   .table-wrapper, .overflow-x-auto { margin-left: -2px; margin-right: -2px; }
 }
-
