@@ -7,7 +7,7 @@
 #  Setup (sekali saja):
 #   1. Repo Settings → Pages → Source: "GitHub Actions"
 #   2. Setelah push pertama, akses:
-#      https://USERNAME.github.io/alvend-readymix/
+#      https://USERNAME.github.io/Alvend-Ready-Mix/
 # ═══════════════════════════════════════════════════════════════
 
 name: Deploy Frontend to GitHub Pages
@@ -20,22 +20,21 @@ on:
       - '.github/workflows/deploy-frontend.yml'
   workflow_dispatch:  # Bisa trigger manual dari tab Actions
 
+# Set permissions yang diperlukan oleh GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# Izinkan satu deployment berjalan bersamaan
 concurrency:
-  group: pages
+  group: "pages"
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  # ── JOB 1: BUILD & UPLOAD ARTIFACT ──────────────────────────
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,7 +47,14 @@ jobs:
         with:
           path: ./frontend
 
+  # ── JOB 2: DEPLOY KE GITHUB PAGES ───────────────────────────
+  deploy:
+    needs: build # Wajib menunggu job build selesai sukses
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
