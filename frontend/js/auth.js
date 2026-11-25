@@ -28,4 +28,3 @@ async function signOutSupabaseAuth() {
 // Ekspos global
 window.trySupabaseAuth = trySupabaseAuth;
 window.signOutSupabaseAuth = signOutSupabaseAuth;
-
