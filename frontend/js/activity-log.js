@@ -7,7 +7,12 @@
 
 async function pruneActivityLogsAsync() {
   if (!supabaseClient) return [];
-  const cutoff = new Date(Date.now() - ACTIVITY_LOG_RETENTION_MS).toISOString();
+  // Defensive: kalau ACTIVITY_LOG_RETENTION_MS belum terdefinisi (mis.
+  // constants.js gagal load), gunakan default 24 jam.
+  const retentionMs = (typeof ACTIVITY_LOG_RETENTION_MS !== 'undefined')
+                      ? ACTIVITY_LOG_RETENTION_MS
+                      : 24 * 60 * 60 * 1000;
+  const cutoff = new Date(Date.now() - retentionMs).toISOString();
   // Hapus log lebih tua dari 24 jam
   await supabaseClient.from('login_logs').delete().lt('login_at', cutoff);
   // Hanya tampilkan log yang rolenya bukan developer
@@ -54,4 +59,3 @@ async function appendActivityLogAsync(user, activity, status = 'success', userna
 // Ekspos global
 window.pruneActivityLogsAsync = pruneActivityLogsAsync;
 window.appendActivityLogAsync = appendActivityLogAsync;
-
