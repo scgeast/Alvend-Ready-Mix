@@ -97,7 +97,7 @@
             <div class="form-group"><div class="error-box" x-text="loginError"></div></div>
           </template>
           <button type="submit" class="btn-login">Login</button>
-          <a href="#" class="forgot-link" @click.prevent></a>
+          <a href="#" class="forgot-link" @click.prevent>Masuk menggunakan User ID yang diberikan Owner</a>
         </form>
       </div>
     </div>
@@ -118,54 +118,44 @@
           <span class="version">V4 · PRO</span>
         </div>
         <nav class="sidebar-menu">
-          <template x-if="hasAccess('jadwal') && !hasAccess('dashboard')">
-            <div>
-              <div x-show="sidebarOpen" class="text-xs text-slate-500 mt-4 px-2">PROYEK SAYA</div>
-              <a href="#page=jadwal" @click.prevent="nav('jadwal')" :class="page==='jadwal'?'active':''" class="menu-link">
-                <i class="fa-solid fa-calendar-days w-5"></i><span x-show="sidebarOpen">Jadwal Pengecoran</span>
-              </a>
-            </div>
-          </template>
           <template x-if="hasAccess('dashboard')">
-            <div>
-              <a x-show="hasAccessExact('dashboard')" href="#page=dashboard" @click.prevent="nav('dashboard')" :class="page==='dashboard'?'active':''" class="menu-link">
-                <i class="fa-solid fa-gauge-high w-5"></i><span x-show="sidebarOpen">Dashboard</span>
-              </a>
-              <template x-if="hasAccess('inputProspek') || hasAccess('dataProspek')">
-                <div x-show="sidebarOpen" class="text-xs text-slate-500 mt-4 px-2">PROSPEK</div>
-              </template>
-              <a x-show="hasAccess('inputProspek')" href="#page=inputProspek" @click.prevent="nav('inputProspek')" :class="page==='inputProspek'?'active':''" class="menu-link">
-                <i class="fa-solid fa-plus-circle w-5"></i><span x-show="sidebarOpen">Input Prospek</span>
-              </a>
-              <a x-show="hasAccess('dataProspek')" href="#page=dataProspek" @click.prevent="nav('dataProspek')" :class="page==='dataProspek'?'active':''" class="menu-link">
-                <i class="fa-solid fa-list w-5"></i><span x-show="sidebarOpen">Data Prospek</span>
-                <template x-if="unreadNotifCount>0">
-                  <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5" x-text="unreadNotifCount"></span>
-                </template>
-              </a>
-              <template x-if="hasAccess('inputOrder') || hasAccess('orderSearch') || hasAccess('marketing')">
-                <div x-show="sidebarOpen" class="text-xs text-slate-500 mt-4 px-2">ORDER</div>
-              </template>
-              <a x-show="hasAccess('inputOrder')" href="#page=inputOrder" @click.prevent="nav('inputOrder')" :class="page==='inputOrder'?'active':''" class="menu-link">
-                <i class="fa-solid fa-cart-plus w-5"></i><span x-show="sidebarOpen">Input Order</span>
-              </a>
-              <a x-show="hasAccess('orderSearch')" href="#page=orderSearch" @click.prevent="nav('orderSearch')" :class="page==='orderSearch'?'active':''" class="menu-link">
-                <i class="fa-solid fa-magnifying-glass w-5"></i><span x-show="sidebarOpen">Order Search</span>
-              </a>
-              <a x-show="hasAccess('marketing')" href="#page=marketing" @click.prevent="nav('marketing')" :class="page==='marketing'?'active':''" class="menu-link">
-                <i class="fa-solid fa-chart-line w-5"></i><span x-show="sidebarOpen">Marketing</span>
-              </a>
-              <template x-if="hasAccess('jadwal') || hasAccess('afterDelivery')">
-                <div x-show="sidebarOpen" class="text-xs text-slate-500 mt-4 px-2">PENGIRIMAN</div>
-              </template>
-              <a x-show="hasAccess('jadwal')" href="#page=jadwal" @click.prevent="nav('jadwal')" :class="page==='jadwal'?'active':''" class="menu-link">
-                <i class="fa-solid fa-calendar-days w-5"></i><span x-show="sidebarOpen">Jadwal Pengecoran</span>
-              </a>
-              <a x-show="hasAccess('afterDelivery')" href="#page=afterDelivery" @click.prevent="nav('afterDelivery')" :class="page==='afterDelivery'?'active':''" class="menu-link">
-                <i class="fa-solid fa-truck-fast w-5"></i><span x-show="sidebarOpen">After Delivery</span>
-              </a>
-            </div>
+            <a href="#page=dashboard" @click.prevent="nav('dashboard')" :class="page==='dashboard'?'active':''" class="menu-link">
+              <i class="fa-solid fa-gauge-high w-5"></i><span x-show="sidebarOpen">Dashboard</span>
+            </a>
           </template>
+          <template x-if="hasAccess('inputProspek') || hasAccess('dataProspek')">
+            <div x-show="sidebarOpen" class="text-xs text-slate-500 mt-4 px-2">PROSPEK</div>
+          </template>
+          <a x-show="hasAccess('inputProspek')" href="#page=inputProspek" @click.prevent="nav('inputProspek')" :class="page==='inputProspek'?'active':''" class="menu-link">
+            <i class="fa-solid fa-plus-circle w-5"></i><span x-show="sidebarOpen">Input Prospek</span>
+          </a>
+          <a x-show="hasAccess('dataProspek')" href="#page=dataProspek" @click.prevent="nav('dataProspek')" :class="page==='dataProspek'?'active':''" class="menu-link">
+            <i class="fa-solid fa-list w-5"></i><span x-show="sidebarOpen">Data Prospek</span>
+            <template x-if="unreadNotifCount>0">
+              <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5" x-text="unreadNotifCount"></span>
+            </template>
+          </a>
+          <template x-if="hasAccess('inputOrder') || hasAccess('orderSearch') || hasAccess('marketing')">
+            <div x-show="sidebarOpen" class="text-xs text-slate-500 mt-4 px-2">ORDER</div>
+          </template>
+          <a x-show="hasAccess('inputOrder')" href="#page=inputOrder" @click.prevent="nav('inputOrder')" :class="page==='inputOrder'?'active':''" class="menu-link">
+            <i class="fa-solid fa-cart-plus w-5"></i><span x-show="sidebarOpen">Input Order</span>
+          </a>
+          <a x-show="hasAccess('orderSearch')" href="#page=orderSearch" @click.prevent="nav('orderSearch')" :class="page==='orderSearch'?'active':''" class="menu-link">
+            <i class="fa-solid fa-magnifying-glass w-5"></i><span x-show="sidebarOpen">Order Search</span>
+          </a>
+          <a x-show="hasAccess('marketing')" href="#page=marketing" @click.prevent="nav('marketing')" :class="page==='marketing'?'active':''" class="menu-link">
+            <i class="fa-solid fa-chart-line w-5"></i><span x-show="sidebarOpen">Marketing</span>
+          </a>
+          <template x-if="hasAccess('jadwal') || hasAccess('afterDelivery')">
+            <div x-show="sidebarOpen" class="text-xs text-slate-500 mt-4 px-2">PENGIRIMAN</div>
+          </template>
+          <a x-show="hasAccess('jadwal')" href="#page=jadwal" @click.prevent="nav('jadwal')" :class="page==='jadwal'?'active':''" class="menu-link">
+            <i class="fa-solid fa-calendar-days w-5"></i><span x-show="sidebarOpen">Jadwal Pengecoran</span>
+          </a>
+          <a x-show="hasAccess('afterDelivery')" href="#page=afterDelivery" @click.prevent="nav('afterDelivery')" :class="page==='afterDelivery'?'active':''" class="menu-link">
+            <i class="fa-solid fa-truck-fast w-5"></i><span x-show="sidebarOpen">After Delivery</span>
+          </a>
           <template x-if="isOwnerOrDeveloper()">
             <div>
               <div x-show="sidebarOpen" class="text-xs text-slate-500 mt-4 px-2">OWNER</div>
@@ -214,10 +204,9 @@
           </div>
           <div class="topbar-right">
             <template x-if="isOwnerOrDeveloper()">
-  <button @click="refreshData()" :disabled="isRefreshing" class="topbar-refresh" title="Refresh data" aria-label="Refresh data">
-    <i class="fa-solid fa-rotate" :class="isRefreshing ? 'fa-spin' : ''"></i>
-  </button>
-</template>            <template x-if="hasAccess('dataProspek') && unreadNotifCount>0">
+              <button @click="refreshData()" class="topbar-refresh" title="Refresh data" aria-label="Refresh data"><i class="fa-solid fa-rotate"></i></button>
+            </template>
+            <template x-if="hasAccess('dataProspek') && unreadNotifCount>0">
               <button @click="nav('dataProspek')" class="btn-danger btn-xs-alvend animate-pulse-red"><i class="fa-solid fa-bell"></i> <span x-text="unreadNotifCount + ' Repeat Order'"></span></button>
             </template>
             <span class="live-indicator" title="Live" aria-label="Live"></span>
@@ -250,7 +239,7 @@
           </template>
 
           <!-- ═══════════ DASHBOARD ═══════════ -->
-          <div x-show="page==='dashboard' && hasAccessExact('dashboard')">
+          <div x-show="page==='dashboard' && hasAccess('dashboard')">
             <!-- Filter periode -->
             <div class="flex justify-end mb-2">
               <div class="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 shadow-sm text-xs">
