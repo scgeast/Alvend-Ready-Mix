@@ -85,10 +85,10 @@
 
 .alvend-login .login-logo {
   margin-bottom: 40px;
-  padding: 0;          /* sebelumnya 12px 18px */
-  border: none;        /* sebelumnya 1px solid #F1F5F9 */
-  border-radius: 0;     /* sebelumnya 16px */
-  box-shadow: none;    /* sebelumnya 0 10px 30px ... */
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -96,7 +96,7 @@
 
 .alvend-login .login-logo-img {
   display: block;
-  height: 120px;        /* ubah angka ini kalau mau logo lebih besar/kecil */
+  height: 80px;
   width: auto;
   max-width: 220px;
   object-fit: contain;
