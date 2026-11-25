@@ -1,65 +1,156 @@
-/* =====================================================
-   CONSTANTS — Akun developer, default permissions, default users
-   ===================================================== */
+// ═══════════════════════════════════════════════════════════════
+// js/constants.js
+// ALVEND Readymix Management — Konstanta Global
+// ✅ FIX: ALL_MENUS & defaultPermsFor konsisten dengan app.js
+// ═══════════════════════════════════════════════════════════════
 
-// ─────────────────────────────────────────────────────────────────
-//  AKUN DEVELOPER (IN-MEMORY ONLY)
-//  Disimpan hanya di kode JavaScript — TIDAK ada di localStorage,
-//  TIDAK ada di tabel users Supabase. Kredensial selalu ambil dari
-//  sini, jadi tidak akan ada masalah cache stale.
-//
-//  Email   : bookingeast0@gmail.com
-//  Password: sultan3110
-//
-//  ⚠ Untuk produksi: daftarkan email ini di Supabase Auth (Dashboard →
-//    Authentication → Users → Add user) supaya login developer divalidasi
-//    server-side. Tanpa Supabase Auth, login tetap berfungsi via
-//    credential di bawah ini.
-// ─────────────────────────────────────────────────────────────────
+// ── Akun default developer (offline fallback) ─────────────────
 const DEVELOPER_DEFAULT_ACCOUNT = {
-  id: -999999,
   username: 'developer',
-  name: 'Application Developer',
-  email: 'bookingeast0@gmail.com',
-  password: 'sultan3110',
+  password: 'dev12345',
+  name: 'Developer',
   role: 'developer',
-  is_active: true,
-  permissions: ['*']
 };
 
-// Nama key localStorage lama — dipakai HANYA untuk migrasi cleanup
-// (hapus data lama yang tersisa dari versi sebelumnya).
-const DEVELOPER_ACCOUNT_LEGACY_KEYS = [
-  'beton_developer_account',
-  'beton_developer_account_version'
+// ═══════════════════════════════════════════════════════════════
+// DAFTAR MENU GLOBAL
+// Harus SINKRON dengan:
+//   - app.js → allMenus, menuGroups, DASHBOARD_GROUP
+//   - index.html → sidebar (x-show="hasAccess('...')")
+// ═══════════════════════════════════════════════════════════════
+const ALL_MENUS = [
+  'dashboard',
+  'inputProspek',
+  'dataProspek',
+  'inputOrder',
+  'orderSearch',
+  'marketing',
+  'jadwal',
+  'afterDelivery',
 ];
 
-const DEFAULT_PERMISSIONS = {
-  owner:    ['dashboard','inputProspek','dataProspek','inputOrder','orderSearch','marketing','jadwal','afterDelivery','proposeSiteNo','kelolaUser','kelolaHakAkses','kelolaPlant','kelolaMutu','kelolaKompetitor','kelolaAlamat','logAktivitas'],
-  admin:    ['dashboard','inputProspek','dataProspek','inputOrder','orderSearch','marketing','jadwal','afterDelivery'],
-  sales:    ['dashboard','inputProspek','dataProspek','inputOrder','orderSearch','marketing','jadwal','afterDelivery'],
-  logistik: ['dashboard','jadwal','afterDelivery'],
-  customer: ['jadwal']
-};
-
-// Hanya dokumentasi — tidak dipakai untuk login.
-// Akun demo (owner, admin, sales1, sales2, customer) dibuat via
-// supabase_schema.sql dan disimpan di tabel users Supabase.
-const DEFAULT_USERS = [
-  { id:1, username:'owner',    name:'Owner Utama',    email:'owner@app.com',    password:'password', role:'owner',    plant_id:null, is_active:true,  permissions: DEFAULT_PERMISSIONS.owner.slice() },
-  { id:2, username:'admin',    name:'Admin Satu',     email:'admin@app.com',    password:'password', role:'admin',    plant_id:null, is_active:true,  permissions: DEFAULT_PERMISSIONS.admin.slice() },
-  { id:3, username:'sales1',   name:'Rina Sales',     email:'sales1@app.com',   password:'password', role:'sales',    plant_id:null, is_active:true,  permissions: DEFAULT_PERMISSIONS.sales.slice() },
-  { id:4, username:'sales2',   name:'Dodi Sales',     email:'sales2@app.com',   password:'password', role:'sales',    plant_id:null, is_active:true,  permissions: DEFAULT_PERMISSIONS.sales.slice() },
-  { id:5, username:'customer', name:'Customer Demo',  email:'customer@app.com', password:'password', role:'customer', assigned_sites:[], is_active:true, permissions: DEFAULT_PERMISSIONS.customer.slice() },
+// ═══════════════════════════════════════════════════════════════
+// MENU REGISTRY (untuk Kelola Hak Akses)
+// label = teks tampil, icon = class FontAwesome
+// ═══════════════════════════════════════════════════════════════
+const MENU_REGISTRY = [
+  { key: 'dashboard',     label: 'Dashboard',         icon: 'fa-solid fa-gauge-high' },
+  { key: 'inputProspek',  label: 'Input Prospek',     icon: 'fa-solid fa-plus-circle' },
+  { key: 'dataProspek',   label: 'Data Prospek',      icon: 'fa-solid fa-list' },
+  { key: 'inputOrder',    label: 'Input Order',       icon: 'fa-solid fa-cart-plus' },
+  { key: 'orderSearch',   label: 'Order Search',      icon: 'fa-solid fa-magnifying-glass' },
+  { key: 'marketing',     label: 'Marketing',         icon: 'fa-solid fa-chart-line' },
+  { key: 'jadwal',        label: 'Jadwal Pengecoran', icon: 'fa-solid fa-calendar-days' },
+  { key: 'afterDelivery', label: 'After Delivery',    icon: 'fa-solid fa-truck-fast' },
 ];
 
-// Retention log aktivitas — log lebih lama dari 24 jam otomatis dihapus
-const ACTIVITY_LOG_RETENTION_MS = 24 * 60 * 60 * 1000;
+// ═══════════════════════════════════════════════════════════════
+// MENU GROUPS (untuk modal Kelola Hak Akses — dikelompokkan)
+// ═══════════════════════════════════════════════════════════════
+const MENU_GROUPS = [
+  {
+    group: 'Utama',
+    items: [
+      { key: 'dashboard', label: 'Dashboard', icon: 'fa-solid fa-gauge-high' },
+    ],
+  },
+  {
+    group: 'Prospek',
+    items: [
+      { key: 'inputProspek', label: 'Input Prospek', icon: 'fa-solid fa-plus-circle' },
+      { key: 'dataProspek',  label: 'Data Prospek',  icon: 'fa-solid fa-list' },
+    ],
+  },
+  {
+    group: 'Order',
+    items: [
+      { key: 'inputOrder',  label: 'Input Order',  icon: 'fa-solid fa-cart-plus' },
+      { key: 'orderSearch', label: 'Order Search', icon: 'fa-solid fa-magnifying-glass' },
+      { key: 'marketing',   label: 'Marketing',    icon: 'fa-solid fa-chart-line' },
+    ],
+  },
+  {
+    group: 'Pengiriman',
+    items: [
+      { key: 'jadwal',        label: 'Jadwal Pengecoran', icon: 'fa-solid fa-calendar-days' },
+      { key: 'afterDelivery', label: 'After Delivery',    icon: 'fa-solid fa-truck-fast' },
+    ],
+  },
+];
 
-// Ekspos global
-window.DEVELOPER_DEFAULT_ACCOUNT = DEVELOPER_DEFAULT_ACCOUNT;
-window.DEVELOPER_ACCOUNT_LEGACY_KEYS = DEVELOPER_ACCOUNT_LEGACY_KEYS;
-window.DEFAULT_PERMISSIONS = DEFAULT_PERMISSIONS;
-window.DEFAULT_USERS = DEFAULT_USERS;
-window.ACTIVITY_LOG_RETENTION_MS = ACTIVITY_LOG_RETENTION_MS;
+// ═══════════════════════════════════════════════════════════════
+// GRUP DASHBOARD (container)
+// Menu-menu ini dirender DI DALAM wrapper <template x-if="hasAccess('dashboard')">
+// di index.html. Jadi kalau 'dashboard' di-uncheck owner tapi menu lain
+// masih terceklis, wrapper tetap harus terbuka.
+//
+// Aturan: hasAccess('dashboard') = true jika user punya MINIMAL SATU
+// menu di grup ini.
+// ═══════════════════════════════════════════════════════════════
+const DASHBOARD_GROUP = [
+  'dashboard',
+  'inputProspek',
+  'dataProspek',
+  'inputOrder',
+  'orderSearch',
+  'marketing',
+  'jadwal',
+  'afterDelivery',
+];
 
+// ═══════════════════════════════════════════════════════════════
+// DEFAULT PERMISSIONS PER ROLE
+// Dipakai sebagai fallback jika kolom `permissions` di tabel users
+// kosong / null. JANGAN sampai kosong untuk role yang seharusnya
+// punya akses.
+// ═══════════════════════════════════════════════════════════════
+function defaultPermsFor(role) {
+  switch (role) {
+    case 'owner':
+    case 'developer':
+      // Full access ke semua menu
+      return [...ALL_MENUS];
+
+    case 'admin':
+      return [
+        'dashboard',
+        'inputProspek', 'dataProspek',
+        'inputOrder', 'orderSearch', 'marketing',
+        'jadwal', 'afterDelivery',
+      ];
+
+    case 'sales':
+      return [
+        'dashboard',
+        'inputProspek', 'dataProspek',
+        'inputOrder', 'orderSearch', 'marketing',
+        'jadwal',
+      ];
+
+    case 'logistik':
+      return [
+        'dashboard',
+        'jadwal', 'afterDelivery',
+      ];
+
+    case 'customer':
+      // Customer hanya lihat jadwal pengecoran miliknya
+      return ['jadwal'];
+
+    default:
+      return [];
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LABEL HELPER (opsional — dipakai modal Kelola Hak Akses)
+// ═══════════════════════════════════════════════════════════════
+function menuLabel(key) {
+  const m = MENU_REGISTRY.find(x => x.key === key);
+  return m ? m.label : key;
+}
+
+function menuIcon(key) {
+  const m = MENU_REGISTRY.find(x => x.key === key);
+  return m ? m.icon : 'fa-solid fa-circle';
+}
