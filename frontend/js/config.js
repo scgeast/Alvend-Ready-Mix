@@ -23,4 +23,3 @@ try {
 window.SUPABASE_URL = SUPABASE_URL;
 window.SUPABASE_PUBLISHABLE_KEY = SUPABASE_PUBLISHABLE_KEY;
 window.supabaseClient = supabaseClient;
-
