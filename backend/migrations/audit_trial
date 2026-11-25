@@ -1,0 +1,60 @@
+-- ═══════════════════════════════════════════════════════════════
+--  MIGRATION: Audit trail + creator tracking
+-- jalankan di Supabase Dashboard → SQL Editor → New query → RUN
+-- ═══════════════════════════════════════════════════════════════
+--  Menambahkan kolom audit (created_by, updated_by, updated_at,
+--  cancelled_by, cancelled_at) untuk tracking siapa & kapan
+--  operasi INSERT/UPDATE/DELETE/Cancel terjadi.
+--
+--  Catatan: orders sudah punya created_by, created_at,
+--  cancelled_at, cancelled_by. Tinggal tambah updated_by,
+--  updated_at.
+--  deliveries sudah punya created_by, created_at, updated_at.
+--  Tinggal tambah updated_by.
+--  prospects belum punya audit apa pun.
+-- ═══════════════════════════════════════════════════════════════
+
+-- ─────────────────────────────────────────────
+--  PROSPECTS — add audit columns
+-- ─────────────────────────────────────────────
+ALTER TABLE prospects
+  ADD COLUMN IF NOT EXISTS created_by   BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS updated_by   BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS updated_at   TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS deleted_by   BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS deleted_at   TIMESTAMPTZ;
+
+-- ─────────────────────────────────────────────
+--  ORDERS — add updated_by, updated_at
+--  (cancelled_by & cancelled_at sudah ada)
+-- ─────────────────────────────────────────────
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS updated_by   BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS updated_at   TIMESTAMPTZ;
+
+-- ─────────────────────────────────────────────
+--  DELIVERIES — add updated_by
+--  (created_by, created_at, updated_at sudah ada)
+-- ─────────────────────────────────────────────
+ALTER TABLE deliveries
+  ADD COLUMN IF NOT EXISTS updated_by   BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS cancelled_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+
+-- ─────────────────────────────────────────────
+--  VERIFICATION — cek kolom-kolom baru
+-- ─────────────────────────────────────────────
+SELECT
+  c.table_name,
+  c.column_name,
+  c.data_type
+FROM information_schema.columns c
+WHERE c.table_schema = 'public'
+  AND c.table_name IN ('prospects', 'orders', 'deliveries')
+  AND c.column_name IN (
+    'created_by', 'created_at',
+    'updated_by', 'updated_at',
+    'cancelled_by', 'cancelled_at',
+    'deleted_by', 'deleted_at'
+  )
+ORDER BY c.table_name, c.column_name;
