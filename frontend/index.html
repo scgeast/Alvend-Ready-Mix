@@ -214,7 +214,9 @@
           </div>
           <div class="topbar-right">
             <template x-if="isOwnerOrDeveloper()">
-              <button @click="refreshData()" class="topbar-refresh" title="Refresh data" aria-label="Refresh data"><i class="fa-solid fa-rotate"></i></button>
+              <button @click="refreshData()" class="topbar-refresh" title="Refresh data" aria-label="Refresh data">
+  <i class="fa-solid fa-rotate"></i>
+</button>
             </template>
             <template x-if="hasAccess('dataProspek') && unreadNotifCount>0">
               <button @click="nav('dataProspek')" class="btn-danger btn-xs-alvend animate-pulse-red"><i class="fa-solid fa-bell"></i> <span x-text="unreadNotifCount + ' Repeat Order'"></span></button>
