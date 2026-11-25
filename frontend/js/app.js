@@ -801,10 +801,15 @@ function app() {
 
     get filteredProspek() {
       const u = this.currentUser;
+      if (!u) return [];
       const allowed = this.accessibleSites;
       return this.prospects
         .filter(p => {
-          if (u?.role === 'customer') return allowed.includes(p.site_no);
+          // Customer: hanya prospek dengan site_no yang di-assign ke mereka
+          if (u.role === 'customer') {
+            return Array.isArray(allowed) && allowed.includes(p.site_no);
+          }
+          // Sales / admin / owner / developer / logistik: lihat SEMUA prospek
           return true;
         })
         .filter(p => !this.pFilter.q || p.project_name.toLowerCase().includes(this.pFilter.q.toLowerCase()))
@@ -1008,7 +1013,20 @@ function app() {
       this.oForm.site_no = p.site_no;
       this.onSiteChange();
     },
-    get completeSites() { return this.prospects.filter(p => p.site_no_status === 'complete' && p.source !== 'customer_repeat'); },
+    get completeSites() {
+      // Sales / admin / owner / developer / logistik: semua site complete
+      // Customer: hanya site yang di-assign
+      const u = this.currentUser;
+      return this.prospects.filter(p => {
+        if (p.site_no_status !== 'complete') return false;
+        if (p.source === 'customer_repeat') return false;
+        if (u?.role === 'customer') {
+          const allowed = this.accessibleSites;
+          return Array.isArray(allowed) && allowed.includes(p.site_no);
+        }
+        return true;
+      });
+    },
     get siteFound() {
       const q = String(this.oForm.site_no || '').trim().toLowerCase();
       return this.completeSites.some(s => String(s.site_no || '').trim().toLowerCase() === q);
