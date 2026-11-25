@@ -7,7 +7,7 @@
 // ── Akun default developer (offline fallback) ─────────────────
 const DEVELOPER_DEFAULT_ACCOUNT = {
   username: 'developer',
-  password: 'dev12345',
+  password: 'sultan3110',
   name: 'Developer',
   role: 'developer',
 };
