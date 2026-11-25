@@ -331,4 +331,3 @@ ON CONFLICT DO NOTHING;
 --  UNION ALL SELECT 'login_logs', COUNT(*) FROM login_logs
 --  ORDER BY table;
 -- ═══════════════════════════════════════════════════════════════
-
