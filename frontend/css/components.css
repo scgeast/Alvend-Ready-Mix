@@ -263,3 +263,57 @@
   text-decoration-color: #dc2626;
   text-decoration-thickness: 2px;
 }
+
+/* =====================================================
+   THEME: BLUE (Tech-Blue Dashboard)
+   Aktif saat <html data-theme="blue">
+   ===================================================== */
+[data-theme="blue"] .card {
+  border-left-color: #2563eb !important;
+}
+[data-theme="blue"] .card::after {
+  background: rgba(37, 99, 235, .07) !important;
+}
+[data-theme="blue"] .panel-header {
+  background: linear-gradient(135deg, #1e3a8a, #2563eb 65%, #3b82f6) !important;
+}
+[data-theme="blue"] .sidebar-toggle-inline {
+  background: #2563eb !important;
+}
+[data-theme="blue"] .sidebar-toggle-inline:hover {
+  background: #1d4ed8 !important;
+}
+[data-theme="blue"] .input:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .1) !important;
+}
+[data-theme="blue"] .top-avatar-fallback {
+  background: #2563eb !important;
+}
+[data-theme="blue"] .topbar-refresh:hover {
+  color: #2563eb !important;
+}
+[data-theme="blue"] .btn-primary {
+  background: #2563eb !important;
+}
+[data-theme="blue"] .btn-primary:hover {
+  background: #1d4ed8 !important;
+}
+[data-theme="blue"] .tag {
+  background: #DBEAFE !important;
+  color: #1e40af !important;
+}
+/* Sidebar active link warna mengikuti tema */
+[data-theme="blue"] .menu-link.active {
+  background: #2563eb !important;
+  color: #fff !important;
+}
+[data-theme="blue"] .menu-link.active i {
+  color: #fff !important;
+}
+/* Dashboard: KPI accent & sub-colors tetap dinamis via inline class */
+/* Insight footer khusus tema biru */
+[data-theme="blue"] .dash-insight-bar {
+  background: linear-gradient(90deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%) !important;
+  color: #fff !important;
+}
