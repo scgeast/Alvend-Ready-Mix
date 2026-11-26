@@ -207,9 +207,6 @@
             <template x-if="isOwnerOrDeveloper()">
               <button @click="refreshData()" class="topbar-refresh" title="Refresh data" aria-label="Refresh data"><i class="fa-solid fa-rotate"></i></button>
             </template>
-            <button @click="toggleTheme()" class="topbar-refresh" :title="theme==='red' ? 'Tema: Alvend Merah (klik untuk ganti Biru)' : 'Tema: Tech Biru (klik untuk ganti Merah)'" aria-label="Ganti tema warna">
-              <i class="fa-solid fa-palette" :class="theme==='blue' ? 'text-blue-600' : 'text-red-600'"></i>
-            </button>
             <template x-if="hasAccess('dataProspek') && unreadNotifCount>0">
               <button @click="nav('dataProspek')" class="btn-danger btn-xs-alvend animate-pulse-red"><i class="fa-solid fa-bell"></i> <span x-text="unreadNotifCount + ' Repeat Order'"></span></button>
             </template>
@@ -244,13 +241,6 @@
 
           <!-- ═══════════ DASHBOARD ═══════════ -->
           <div x-show="page==='dashboard' && hasAccess('dashboard')">
-            <!-- Dashboard Header + Truck Logo -->
-            <div class="dash-header">
-              <h2><i class="fa-solid fa-gauge-high mr-1" :class="theme==='blue' ? 'text-blue-600' : 'text-red-600'"></i>Delivery &amp; Sales Dashboard</h2>
-              <div class="dash-subtitle">PT ALVEND READYMIX — Monitoring real-time pengiriman &amp; penjualan</div>
-              <img src="assets/logo.png" alt="ALVEND" class="dash-truck-logo">
-            </div>
-
             <!-- Filter periode -->
             <div class="flex justify-end mb-2">
               <div class="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 shadow-sm text-xs">
@@ -267,108 +257,68 @@
               </div>
             </div>
 
-            <!-- KPI Cards (Row 1: 4 cards) -->
+            <!-- KPI Cards -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
               <div class="card kpi-tight">
                 <p class="text-[11px] text-slate-500">Total Prospek</p>
                 <p class="text-xl font-bold" x-text="dashStats.totalProspek"></p>
-                <template x-if="dashDelta.totalProspek">
-                  <span class="kpi-delta" :class="dashDelta.totalProspek.pct > 0.05 ? 'up' : (dashDelta.totalProspek.pct < -0.05 ? 'down' : 'flat')">
-                    <i class="fa-solid" :class="dashDelta.totalProspek.up ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
-                    <span x-text="fmtDelta(dashDelta.totalProspek.pct)"></span>
-                  </span>
-                </template>
               </div>
               <div class="card kpi-tight">
                 <p class="text-[11px] text-slate-500">Repeat Order</p>
                 <p class="text-xl font-bold text-amber-600" x-text="dashStats.repeatOrder"></p>
-                <template x-if="dashDelta.repeatOrder">
-                  <span class="kpi-delta" :class="dashDelta.repeatOrder.pct > 0.05 ? 'up' : (dashDelta.repeatOrder.pct < -0.05 ? 'down' : 'flat')">
-                    <i class="fa-solid" :class="dashDelta.repeatOrder.up ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
-                    <span x-text="fmtDelta(dashDelta.repeatOrder.pct)"></span>
-                  </span>
-                </template>
               </div>
               <div class="card kpi-tight">
-                <p class="text-[11px] text-slate-500">Site Incomplete</p>
-                <p class="text-xl font-bold text-indigo-600" x-text="dashIncompleteSites.length"></p>
-                <span class="kpi-delta flat"><i class="fa-solid fa-clock"></i> backlog</span>
+                <p class="text-[11px] text-slate-500">Site No Complete</p>
+                <p class="text-xl font-bold text-indigo-600" x-text="dashStats.complete"></p>
               </div>
               <div class="card kpi-tight">
                 <p class="text-[11px] text-slate-500">Total Order</p>
                 <p class="text-xl font-bold text-orange-600" x-text="dashStats.totalOrder"></p>
-                <template x-if="dashDelta.totalOrder">
-                  <span class="kpi-delta" :class="dashDelta.totalOrder.pct > 0.05 ? 'up' : (dashDelta.totalOrder.pct < -0.05 ? 'down' : 'flat')">
-                    <i class="fa-solid" :class="dashDelta.totalOrder.up ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
-                    <span x-text="fmtDelta(dashDelta.totalOrder.pct)"></span>
-                  </span>
-                </template>
               </div>
             </div>
 
-            <!-- KPI Cards (Row 2: 3 cards) -->
             <div class="grid grid-cols-3 gap-2 mb-3">
               <div class="card kpi-tight">
                 <p class="text-[11px] text-slate-500">Qty Order (m³)</p>
                 <p class="text-lg font-bold" x-text="fmt(dashStats.qtyOrder)"></p>
-                <template x-if="dashDelta.qtyOrder">
-                  <span class="kpi-delta" :class="dashDelta.qtyOrder.pct > 0.05 ? 'up' : (dashDelta.qtyOrder.pct < -0.05 ? 'down' : 'flat')">
-                    <i class="fa-solid" :class="dashDelta.qtyOrder.up ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
-                    <span x-text="fmtDelta(dashDelta.qtyOrder.pct)"></span>
-                  </span>
-                </template>
               </div>
               <div class="card kpi-tight">
                 <p class="text-[11px] text-slate-500">Qty Delivered (m³)</p>
                 <p class="text-lg font-bold text-emerald-600" x-text="fmt(dashStats.qtyDelivered)"></p>
-                <template x-if="dashDelta.qtyDelivered">
-                  <span class="kpi-delta" :class="dashDelta.qtyDelivered.pct > 0.05 ? 'up' : (dashDelta.qtyDelivered.pct < -0.05 ? 'down' : 'flat')">
-                    <i class="fa-solid" :class="dashDelta.qtyDelivered.up ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
-                    <span x-text="fmtDelta(dashDelta.qtyDelivered.pct)"></span>
-                  </span>
-                </template>
               </div>
               <div class="card kpi-tight">
                 <p class="text-[11px] text-slate-500">Delivery Rate</p>
                 <p class="text-lg font-bold text-blue-600" x-text="dashDeliveryRate.toFixed(1) + '%'"></p>
-                <template x-if="dashDelta.deliveryRate">
-                  <span class="kpi-delta" :class="dashDelta.deliveryRate.pct > 0.05 ? 'up' : (dashDelta.deliveryRate.pct < -0.05 ? 'down' : 'flat')">
-                    <i class="fa-solid" :class="dashDelta.deliveryRate.up ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
-                    <span x-text="fmtDelta(dashDelta.deliveryRate.pct)"></span>
-                  </span>
-                </template>
               </div>
             </div>
 
-            <!-- Row 1: Trend (LINE CHART) + Donut -->
+            <!-- Row 1: Trend + Donut -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-2 mb-2">
               <div class="card lg:col-span-2" style="padding:14px;">
                 <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
-                  <h3 class="text-sm font-semibold"><i class="fa-solid fa-chart-line text-blue-500 mr-1"></i>Order &amp; Delivery Harian (m³)</h3>
+                  <h3 class="text-sm font-semibold"><i class="fa-solid fa-chart-column text-blue-500 mr-1"></i>Order & Delivery Harian (m³)</h3>
                   <div class="flex items-center gap-3 text-[10px]">
                     <span class="inline-flex items-center gap-1"><span class="w-2 h-2 bg-blue-500 rounded-sm"></span>Order</span>
                     <span class="inline-flex items-center gap-1"><span class="w-2 h-2 bg-emerald-500 rounded-sm"></span>Delivered</span>
                   </div>
                 </div>
-                <svg class="dash-line-chart" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  <!-- grid lines -->
-                  <line x1="0" y1="0" x2="100" y2="0" stroke="#f1f5f9" stroke-width="0.3" vector-effect="non-scaling-stroke"/>
-                  <line x1="0" y1="25" x2="100" y2="25" stroke="#f1f5f9" stroke-width="0.3" vector-effect="non-scaling-stroke"/>
-                  <line x1="0" y1="50" x2="100" y2="50" stroke="#f1f5f9" stroke-width="0.3" vector-effect="non-scaling-stroke"/>
-                  <line x1="0" y1="75" x2="100" y2="75" stroke="#f1f5f9" stroke-width="0.3" vector-effect="non-scaling-stroke"/>
-                  <line x1="0" y1="100" x2="100" y2="100" stroke="#e2e8f0" stroke-width="0.4" vector-effect="non-scaling-stroke"/>
-                  <!-- order line -->
-                  <path :d="dashTrendOrderPath" stroke="#3b82f6" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-                  <!-- delivered line -->
-                  <path :d="dashTrendDelivPath" stroke="#10b981" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-                </svg>
-                <template x-if="dashTrendDaily.length === 0">
-                  <div class="text-center text-xs text-slate-400 py-4">Pilih rentang tanggal untuk melihat tren</div>
-                </template>
-                <!-- x-axis labels -->
-                <div class="flex justify-between mt-1 text-[8px] text-slate-500">
-                  <template x-for="(d, idx) in dashTrendDaily" :key="'lbl-'+d.date">
-                    <span x-show="idx % Math.max(1, Math.floor(dashTrendDaily.length / 6)) === 0" x-text="d.label"></span>
+                <div class="flex items-end gap-0.5" style="height:170px">
+                  <template x-for="(d, idx) in dashTrendDaily" :key="d.date">
+                    <div class="flex-1 flex flex-col justify-end h-full min-w-0">
+                      <div class="flex gap-px items-end justify-center w-full" style="height:calc(100% - 20px)">
+                        <div class="bg-blue-500 rounded-t w-1/2 max-w-[10px] transition-all"
+                             :style="'height:' + Math.max(0, Math.min(100, (d.orderQty/dashTrendMax*100))) + '%'"
+                             :title="d.date + ': Order ' + fmt(d.orderQty) + ' m³'"></div>
+                        <div class="bg-emerald-500 rounded-t w-1/2 max-w-[10px] transition-all"
+                             :style="'height:' + Math.max(0, Math.min(100, (d.delivQty/dashTrendMax*100))) + '%'"
+                             :title="d.date + ': Delivered ' + fmt(d.delivQty) + ' m³'"></div>
+                      </div>
+                      <div x-show="idx % Math.max(1, Math.floor(dashTrendDaily.length / 10)) === 0"
+                           class="text-[8px] text-slate-500 text-center truncate" x-text="d.label.split('-')[1]"></div>
+                    </div>
+                  </template>
+                  <template x-if="dashTrendDaily.length === 0">
+                    <div class="w-full text-center text-xs text-slate-400 py-8">Pilih rentang tanggal untuk melihat tren</div>
                   </template>
                 </div>
               </div>
@@ -395,7 +345,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-2 mb-2">
               <div class="card lg:col-span-2" style="padding:14px;">
                 <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
-                  <h3 class="text-sm font-semibold"><i class="fa-solid fa-chart-column text-indigo-500 mr-1"></i>Prospek vs Order per Minggu</h3>
+                  <h3 class="text-sm font-semibold"><i class="fa-solid fa-chart-line text-indigo-500 mr-1"></i>Prospek vs Order per Minggu</h3>
                   <div class="flex items-center gap-3 text-[10px]">
                     <span class="inline-flex items-center gap-1"><span class="w-2 h-2 bg-indigo-500 rounded-sm"></span>Prospek</span>
                     <span class="inline-flex items-center gap-1"><span class="w-2 h-2 bg-orange-500 rounded-sm"></span>Order (m³)</span>
@@ -457,7 +407,7 @@
             </div>
 
             <!-- Row 3: Recent Orders + Incomplete Sites -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-2 mb-2">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-2">
               <div class="card" style="padding:14px;">
                 <h3 class="text-sm font-semibold mb-2"><i class="fa-solid fa-receipt text-blue-500 mr-1"></i>Order Terbaru</h3>
                 <div class="overflow-x-auto">
@@ -493,7 +443,7 @@
               </div>
 
               <div class="card" style="padding:14px;">
-                <h3 class="text-sm font-semibold mb-2"><i class="fa-solid fa-clipboard-list text-amber-500 mr-1"></i>Site Incomplete — Sisa Qty <span class="text-[10px] text-slate-400 font-normal">(backlog)</span></h3>
+                <h3 class="text-sm font-semibold mb-2"><i class="fa-solid fa-clipboard-list text-amber-500 mr-1"></i>Site Selesai — Sisa Qty <span class="text-[10px] text-slate-400 font-normal">(backlog)</span></h3>
                 <div class="overflow-x-auto">
                   <table class="text-xs">
                     <thead>
@@ -520,48 +470,6 @@
                   </table>
                 </div>
               </div>
-            </div>
-
-            <!-- Row 4: Distribusi Wilayah (keyword matching) -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-2 mb-2">
-              <div class="card lg:col-span-2" style="padding:14px;">
-                <h3 class="text-sm font-semibold mb-2"><i class="fa-solid fa-map-location-dot text-blue-500 mr-1"></i>Distribusi Wilayah <span class="text-[10px] text-slate-400 font-normal">(berdasarkan alamat prospek)</span></h3>
-                <template x-if="dashWilayahDistribution.items.length > 0">
-                  <div>
-                    <template x-for="w in dashWilayahDistribution.items" :key="w.name">
-                      <div class="wilayah-row">
-                        <span class="wilayah-name" x-text="w.name"></span>
-                        <div class="wilayah-bar-wrap">
-                          <div class="wilayah-bar" :style="'width:' + w.percent + '%'"></div>
-                        </div>
-                        <span class="wilayah-percent" x-text="w.percent.toFixed(1) + '%'"></span>
-                      </div>
-                    </template>
-                    <div class="text-[10px] text-slate-400 mt-2">Total prospek pada periode: <strong x-text="dashWilayahDistribution.total"></strong></div>
-                  </div>
-                </template>
-                <template x-if="dashWilayahDistribution.items.length === 0">
-                  <div class="text-center text-xs text-slate-400 py-6">Belum ada data alamat prospek pada periode ini</div>
-                </template>
-              </div>
-
-              <div class="card" style="padding:14px;">
-                <h3 class="text-sm font-semibold mb-2"><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>Ringkasan Periode</h3>
-                <div class="space-y-2 text-xs">
-                  <div class="flex justify-between"><span class="text-slate-600">Rentang</span><strong x-text="dashFilter.start + ' s/d ' + dashFilter.end"></strong></div>
-                  <div class="flex justify-between"><span class="text-slate-600">Total Order</span><strong x-text="dashStats.totalOrder"></strong></div>
-                  <div class="flex justify-between"><span class="text-slate-600">Qty Order</span><strong x-text="fmt(dashStats.qtyOrder) + ' m³'"></strong></div>
-                  <div class="flex justify-between"><span class="text-slate-600">Qty Delivered</span><strong x-text="fmt(dashStats.qtyDelivered) + ' m³'"></strong></div>
-                  <div class="flex justify-between"><span class="text-slate-600">Delivery Rate</span><strong class="text-blue-600" x-text="dashDeliveryRate.toFixed(1) + '%'"></strong></div>
-                  <div class="flex justify-between"><span class="text-slate-600">Konversi</span><strong class="text-emerald-600" x-text="dashConversionRate.toFixed(1) + '%'"></strong></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Insight Footer -->
-            <div class="dash-insight-bar">
-              <i class="fa-solid fa-lightbulb"></i>
-              <span x-text="dashInsightMsg"></span>
             </div>
           </div>
 
