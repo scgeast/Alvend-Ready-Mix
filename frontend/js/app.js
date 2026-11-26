@@ -578,6 +578,56 @@ function app() {
       return cfg.label + ' oleh ' + who + (at ? ' · ' + this.fmtTimestamp(at) : '');
     },
 
+    /**
+     * Update data utama + audit fields secara terpisah.
+     * Data utama SELALU dikirim (jika gagal, throw error).
+     * Audit fields (updated_by, updated_at) dikirim terpisah dalam
+     * try/catch — kalau gagal (mis. kolom belum ada karena migration
+     * belum dijalankan), diabaikan supaya data utama tetap tersimpan.
+     */
+    async safeAuditUpdate(table, id, mainPayload, auditPayload) {
+      // 1) Update data utama DULU — kalau gagal, throw
+      await DB.update(table, id, mainPayload);
+      // 2) Best-effort: update audit fields terpisah
+      if (auditPayload && typeof auditPayload === 'object') {
+        try {
+          await DB.update(table, id, auditPayload);
+        } catch (e) {
+          // Kolom audit mungkin belum ada — abaikan, data utama sudah tersimpan
+          console.warn('[audit] Kolom audit belum tersedia di tabel', table, '— jalankan migration 002_audit_trail.sql');
+        }
+      }
+    },
+    /**
+     * Insert data utama + audit fields. Audit fields dicoba dalam
+     * insert kedua (update) supaya kalau kolom belum ada, insert
+     * utama tetap berhasil.
+     */
+    async safeAuditInsert(table, item, auditFields) {
+      // 1) Insert data utama (tanpa audit fields yang mungkin belum ada)
+      const cleanItem = { ...item };
+      // Hapus field audit dari insert utama
+      if (auditFields && Array.isArray(auditFields)) {
+        auditFields.forEach(f => delete cleanItem[f]);
+      }
+      const result = await DB.insert(table, cleanItem);
+      // 2) Best-effort: update audit fields
+      if (result && result.id && auditFields && Array.isArray(auditFields)) {
+        const auditPayload = {};
+        auditFields.forEach(f => {
+          if (item[f] !== undefined) auditPayload[f] = item[f];
+        });
+        if (Object.keys(auditPayload).length > 0) {
+          try {
+            await DB.update(table, result.id, auditPayload);
+          } catch (e) {
+            console.warn('[audit] Kolom audit belum tersedia di tabel', table);
+          }
+        }
+      }
+      return result;
+    },
+
     statusBadge(s) {
       return {
         pending: 'bg-slate-100 text-slate-700', scheduled: 'bg-blue-100 text-blue-700',
@@ -850,7 +900,9 @@ function app() {
         created_by: this.currentUser?.id || null,
       };
       try {
-        await DB.insert('prospects', newItem);
+        // created_by dikirim terpisah (best-effort) supaya insert utama
+        // tetap berhasil walau kolom created_by belum ada di DB.
+        await this.safeAuditInsert('prospects', newItem, ['created_by']);
         await this.reload();
         this.pForm = { project_name: '', address: '', pic_name: '', pic_contact: '', construction_type: '', competitor_id: '', competitor_other: '' };
         this.toastMsg('Prospek disimpan: ' + no);
@@ -884,18 +936,22 @@ function app() {
         this.toastMsg('Hanya Owner/Admin yang bisa edit prospek', 'error'); return;
       }
       const comp = this.competitors.find(c => Number(c.id) === Number(this.epForm.competitor_id));
+      const mainPayload = {
+        project_name: this.epForm.project_name,
+        address: this.epForm.address,
+        pic_name: this.epForm.pic_name,
+        pic_contact: this.epForm.pic_contact,
+        construction_type: this.epForm.construction_type,
+        competitor_id: comp ? Number(comp.id) : null,
+        competitor_name: comp?.name || this.epForm.competitor_other || '',
+      };
+      const auditPayload = {
+        updated_by: this.currentUser?.id || null,
+        updated_at: new Date().toISOString(),
+      };
       try {
-        await DB.update('prospects', this.editProspekModal.id, {
-          project_name: this.epForm.project_name,
-          address: this.epForm.address,
-          pic_name: this.epForm.pic_name,
-          pic_contact: this.epForm.pic_contact,
-          construction_type: this.epForm.construction_type,
-          competitor_id: comp ? Number(comp.id) : null,
-          competitor_name: comp?.name || this.epForm.competitor_other || '',
-          updated_by: this.currentUser?.id || null,
-          updated_at: new Date().toISOString(),
-        });
+        // Data utama SELALU disimpan. Audit best-effort.
+        await this.safeAuditUpdate('prospects', this.editProspekModal.id, mainPayload, auditPayload);
         await this.reload();
         this.editProspekModal.show = false;
         this.toastMsg('Prospek diupdate: ' + this.editProspekModal.prospect_no);
@@ -1285,7 +1341,11 @@ function app() {
     async saveDelivery() {
       const o = this.orders.find(x => Number(x.id) === Number(this.dvModal.order_id));
       if (!o) return;
-      if (+this.dvForm.qty > o.qty_remain) { this.toastMsg('Muatan melebihi sisa', 'error'); return; }
+      // Untuk order yang sudah Complete (qty_remain <= 0), hanya Owner/Admin
+      // yang boleh menambah pengiriman koreksi (boleh melebihi sisa 0).
+      if (!this.isOwnerOrAdmin() && +this.dvForm.qty > o.qty_remain) {
+        this.toastMsg('Muatan melebihi sisa', 'error'); return;
+      }
       const sjNo = (this.dvForm.sj_no || '').trim();
       if (sjNo) {
         const dupe = this.deliveries.find(d => (d.sj_no || '').toLowerCase() === sjNo.toLowerCase());
@@ -1361,23 +1421,26 @@ function app() {
       }
       const orderId = existing.order_id;
       const now = new Date().toISOString();
-      const updatePayload = {
+      // Data utama yang pasti ada kolomnya
+      const mainPayload = {
         status: newStatus,
         remarks: remarks,
         sj_no: sjNo || null,
         truck_no: this.edvForm.truck_no,
         qty: +this.edvForm.qty,
         driver_name: this.edvForm.driver_name,
+      };
+      // Audit fields — best-effort (kolom mungkin belum ada)
+      const auditPayload = {
         updated_at: now,
         updated_by: this.currentUser?.id || null,
       };
-      // Kalau status jadi cancelled, catat siapa & kapan
       if (newStatus === 'cancelled') {
-        updatePayload.cancelled_at = now;
-        updatePayload.cancelled_by = this.currentUser?.id || null;
+        auditPayload.cancelled_at = now;
+        auditPayload.cancelled_by = this.currentUser?.id || null;
       }
       try {
-        await DB.update('deliveries', this.editDvModal.deliveryId, updatePayload);
+        await this.safeAuditUpdate('deliveries', this.editDvModal.deliveryId, mainPayload, auditPayload);
         await this.recalcOrderStatus(orderId);
         await this.reload();
         this.editDvModal.show = false;
@@ -1427,6 +1490,43 @@ function app() {
     },
 
     /* ─────────── ORDER SEARCH ─────────── */
+    downloadOrderSearchExcel() {
+      const rows = this.filteredOrders;
+      if (rows.length === 0) { this.toastMsg('Tidak ada data untuk di-download', 'error'); return; }
+      let html = '<html><head><meta charset="UTF-8"></head><body>';
+      html += '<h3>Order Search Report</h3>';
+      html += '<table border="1" cellpadding="4" cellspacing="0"><thead><tr>';
+      const cols = ['Order No', 'Site No', 'Project', 'Sales', 'Mutu', 'Plant', 'Tgl Kirim', 'Qty Order (m³)', 'Qty Delivery (m³)', 'Qty Remain (m³)', 'Status', 'Cancel Reason'];
+      cols.forEach(c => html += `<th style="background:#f0f0f0">${c}</th>`);
+      html += '</tr></thead><tbody>';
+      rows.forEach(o => {
+        html += '<tr>';
+        html += `<td>${o.order_no || ''}</td>`;
+        html += `<td>${o.site_no || ''}</td>`;
+        html += `<td>${o.project_name || ''}</td>`;
+        html += `<td>${this.salesName(o.sales_id)}</td>`;
+        html += `<td>${this.mutuCode(o.mutu_id)}</td>`;
+        html += `<td>${this.plantName(o.plant_id)}</td>`;
+        html += `<td>${o.delivery_date || ''}</td>`;
+        html += `<td>${o.qty_order || 0}</td>`;
+        html += `<td>${o.qty_delivery || 0}</td>`;
+        html += `<td>${o.qty_remain || 0}</td>`;
+        html += `<td>${o.status || ''}</td>`;
+        html += `<td>${o.cancel_reason || ''}</td>`;
+        html += '</tr>';
+      });
+      html += '</tbody></table></body></html>';
+      const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `OrderSearch_${todayISO()}.xls`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      this.toastMsg('File Excel di-download');
+    },
     openEditOrder(o) {
       if (this.isOrderFinished(o)) { this.toastMsg('Order sudah Complete/Finished dan tidak dapat diedit.', 'error'); return; }
       this.editOrderModal = { show: true, data: o };
@@ -1461,13 +1561,16 @@ function app() {
         status = del <= 0 ? 'scheduled' : (remain <= 0 ? 'completed' : 'partial');
       }
       try {
-        await DB.update('orders', o.id, {
+        const mainPayload = {
           mutu_id: Number(this.eoForm.mutu_id), plant_id: Number(this.eoForm.plant_id),
           delivery_date: this.eoForm.delivery_date, pouring_time: this.eoForm.pouring_time,
           qty_order: qty, qty_remain: remain, metode_cor: this.eoForm.metode_cor, status,
+        };
+        const auditPayload = {
           updated_by: this.currentUser?.id || null,
           updated_at: new Date().toISOString(),
-        });
+        };
+        await this.safeAuditUpdate('orders', o.id, mainPayload, auditPayload);
         await this.reload();
         this.editOrderModal.show = false;
         this.toastMsg('Order diupdate');
@@ -1479,7 +1582,9 @@ function app() {
       const reason = prompt('Masukkan alasan CANCEL ORDER ' + o.order_no + ':');
       if (!reason || !reason.trim()) { this.toastMsg('Alasan cancel wajib diisi', 'error'); return; }
       try {
-        await DB.update('orders', o.id, { status: 'cancelled', cancel_reason: reason.trim(), cancelled_at: new Date().toISOString(), cancelled_by: this.currentUser?.id });
+        const mainPayload = { status: 'cancelled', cancel_reason: reason.trim() };
+        const auditPayload = { cancelled_at: new Date().toISOString(), cancelled_by: this.currentUser?.id };
+        await this.safeAuditUpdate('orders', o.id, mainPayload, auditPayload);
         await this.reload();
         this.editOrderModal.show = false;
         this.toastMsg('Order ' + o.order_no + ' dibatalkan');
@@ -1491,7 +1596,9 @@ function app() {
       const reason = prompt('Masukkan alasan CANCEL ORDER ' + o.order_no + ':');
       if (!reason || !reason.trim()) { this.toastMsg('Alasan cancel wajib diisi', 'error'); return; }
       try {
-        await DB.update('orders', o.id, { status: 'cancelled', cancel_reason: reason.trim(), cancelled_at: new Date().toISOString(), cancelled_by: this.currentUser?.id });
+        const mainPayload = { status: 'cancelled', cancel_reason: reason.trim() };
+        const auditPayload = { cancelled_at: new Date().toISOString(), cancelled_by: this.currentUser?.id };
+        await this.safeAuditUpdate('orders', o.id, mainPayload, auditPayload);
         await this.reload();
         this.toastMsg('Order ' + o.order_no + ' dibatalkan');
       } catch (e) { this.toastMsg('Gagal cancel order: ' + (e?.message || e), 'error'); }
