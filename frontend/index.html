@@ -761,10 +761,10 @@
                               <template x-if="d.sj_no"><span class="font-mono text-blue-700 text-xs" x-text="'['+d.sj_no+']'"></span></template>
                               <template x-if="(d.status||'delivered')==='cancelled'"><span class="badge bg-red-100 text-red-700 text-xs">CANCEL</span></template>
                               <template x-if="(d.status||'delivered')==='rejected'"><span class="badge bg-orange-100 text-orange-700 text-xs">REJECT</span></template>
-                              <template x-if="hasAccess('orderSearch') && !isOrderFinished(o)">
-                                <button @click="openEditDelivery(d)" class="text-blue-600 hover:text-blue-800 text-xs" title="Edit pengiriman"><i class="fa-solid fa-pen"></i></button>
+                              <template x-if="hasAccess('orderSearch') && (!isOrderFinished(o) || isOwnerOrAdmin())">
+                                <button @click="openEditDelivery(d)" class="text-blue-600 hover:text-blue-800 text-xs" :title="isOrderFinished(o) ? 'Edit pengiriman (Owner/Admin — koreksi untuk order Complete)' : 'Edit pengiriman'"><i class="fa-solid fa-pen"></i></button>
                               </template>
-                              <template x-if="hasAccess('orderSearch') && isOrderFinished(o)">
+                              <template x-if="hasAccess('orderSearch') && isOrderFinished(o) && !isOwnerOrAdmin()">
                                 <span class="text-emerald-600 text-xs" title="Order Complete/Finished — pengiriman terkunci"><i class="fa-solid fa-lock"></i></span>
                               </template>
                             </div>
@@ -774,7 +774,8 @@
                         <td class="td">
                           <template x-if="hasAccess('orderSearch') && o.status!=='cancelled'">
                             <template x-if="o.qty_remain>0"><button @click="openDelivery(o)" class="btn-primary text-xs"><i class="fa-solid fa-plus"></i> Update</button></template>
-                            <template x-if="o.qty_remain<=0"><span class="text-emerald-600 text-xs">✓ Selesai</span></template>
+                            <template x-if="o.qty_remain<=0 && isOwnerOrAdmin()"><button @click="openDelivery(o)" class="btn-warning text-xs" title="Tambah pengiriman koreksi (Owner/Admin)"><i class="fa-solid fa-plus"></i> Update</button></template>
+                            <template x-if="o.qty_remain<=0 && !isOwnerOrAdmin()"><span class="text-emerald-600 text-xs">✓ Selesai</span></template>
                           </template>
                           <template x-if="o.status==='cancelled'"><span class="text-red-600 text-xs"><i class="fa-solid fa-ban"></i> Cancelled</span></template>
                           <template x-if="currentUser.role==='customer'"><button @click="openOneClickOrder(o)" class="btn-success text-xs"><i class="fa-solid fa-cart-plus"></i> Order Lagi</button></template>
@@ -810,13 +811,16 @@
                   <option value="">Mutu</option>
                   <template x-for="m in mutuList" :key="m.id"><option :value="m.id" x-text="m.code"></option></template>
                 </select>
-                <select x-model="sFilter.status" class="input">
-                  <option value="">Status</option>
-                  <option value="scheduled">Scheduled</option>
-                  <option value="partial">Partial</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
+                <div class="flex gap-2">
+                  <select x-model="sFilter.status" class="input flex-1">
+                    <option value="">Status</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="partial">Partial</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                  <button type="button" @click="downloadOrderSearchExcel()" class="btn-success text-sm flex items-center justify-center whitespace-nowrap" title="Download Excel"><i class="fa-solid fa-file-excel"></i></button>
+                </div>
               </div>
             </div>
             <div class="card overflow-x-auto">
@@ -1037,13 +1041,12 @@
                   <option value="rejected">Rejected</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
-                <button type="button" @click="adFilter={q:'',plant_id:'',date_from:'',date_to:'',status:''}" class="btn-secondary text-sm"><i class="fa-solid fa-rotate-left mr-1"></i>Reset Filter</button>
+                <button type="button" @click="downloadAfterDeliveryExcel()" class="btn-success text-sm flex items-center justify-center" title="Download Excel"><i class="fa-solid fa-file-excel"></i></button>
               </div>
             </div>
             <div class="card overflow-x-auto">
-              <div class="flex items-center justify-between mb-3">
+              <div class="mb-3">
                 <h3 class="font-semibold">After Delivery Report</h3>
-                <button @click="downloadAfterDeliveryExcel()" class="btn-success text-sm"><i class="fa-solid fa-file-excel"></i> Download Excel</button>
               </div>
               <table>
                 <thead>
@@ -2129,7 +2132,7 @@
             <input x-model="dvForm.sj_no" class="input font-mono" placeholder="cth: SJ/20261002/001">
           </div>
           <div><label class="label">No Truck *</label><input x-model="dvForm.truck_no" required class="input" placeholder="B 1234 XY"></div>
-          <div><label class="label">Muatan (m³) *</label><input type="number" step="0.01" x-model.number="dvForm.qty" required class="input" :max="dvModal.remain"></div>
+          <div><label class="label">Muatan (m³) *</label><input type="number" step="0.01" x-model.number="dvForm.qty" required class="input" :max="(dvModal.isComplete && isOwnerOrAdmin()) ? '' : dvModal.remain"></div>
           <div><label class="label">Driver</label><input x-model="dvForm.driver_name" class="input"></div>
           <p class="text-xs text-slate-500">Sisa: <span x-text="fmt(dvModal.remain)"></span> m³</p>
           <p class="text-xs text-slate-500 bg-blue-50 p-2 rounded mt-2"><i class="fa-solid fa-info-circle text-blue-500"></i> Setelah disimpan, pengiriman dapat diedit ulang bila ada reject / cancel dari pihak project.</p>
