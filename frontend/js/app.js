@@ -32,8 +32,6 @@ function app() {
     profileForm: { old_password: '', new_password: '', confirm_password: '' },
 
     dashFilter: { preset: 'month', start: '', end: '' },
-    /* Theme: 'red' (Alvend default) | 'blue' (tech-blue dashboard) */
-    theme: (typeof localStorage !== 'undefined' && localStorage.getItem('alvend_theme')) || 'red',
 
     /* Prospek */
     pForm: { project_name: '', address: '', pic_name: '', pic_contact: '', construction_type: '', competitor_id: '', competitor_other: '' },
@@ -142,7 +140,6 @@ function app() {
     /* ─────────── INIT ─────────── */
     async init() {
       this.ensureDeveloperAccount();
-      this.applyTheme();
       try {
         await this.reload();
       } catch (e) {
@@ -210,19 +207,6 @@ function app() {
       }
     },
     onDashDateChange() { this.dashFilter.preset = 'custom'; },
-
-    /* ─────────── THEME TOGGLE ─────────── */
-    toggleTheme() {
-      this.theme = (this.theme === 'blue') ? 'red' : 'blue';
-      try { localStorage.setItem('alvend_theme', this.theme); } catch (_) {}
-      this.applyTheme();
-    },
-    applyTheme() {
-      if (typeof document !== 'undefined' && document.documentElement) {
-        document.documentElement.setAttribute('data-theme', this.theme);
-      }
-    },
-
     inDashRange(dateStr) {
       if (!dateStr) return false;
       const d = String(dateStr).slice(0, 10);
@@ -323,29 +307,6 @@ function app() {
       return Math.max(1, ...this.dashTrendDaily.flatMap(d => [d.orderQty, d.delivQty]));
     },
 
-    /* SVG line path untuk trend chart (viewBox 0 0 100 100, y inverted). */
-    dashTrendLinePath(field) {
-      const data = this.dashTrendDaily;
-      if (!data.length) return '';
-      const max = this.dashTrendMax || 1;
-      const stepX = data.length > 1 ? 100 / (data.length - 1) : 0;
-      return data.map((d, i) => {
-        const x = i * stepX;
-        const v = Number(d[field]) || 0;
-        const y = 100 - (v / max) * 100;
-        return (i === 0 ? 'M' : 'L') + x.toFixed(2) + ',' + y.toFixed(2);
-      }).join(' ');
-    },
-    get dashTrendOrderPath() { return this.dashTrendLinePath('orderQty'); },
-    get dashTrendDelivPath() { return this.dashTrendLinePath('delivQty'); },
-
-    /* Helper format delta percentage (signed). */
-    fmtDelta(pct) {
-      if (pct === undefined || pct === null || isNaN(pct)) return '';
-      const sign = pct > 0 ? '+' : '';
-      return sign + pct.toFixed(1) + '%';
-    },
-
     get dashWeeklyData() {
       const days = this.dashTrendDaily;
       if (!days.length) return [];
@@ -426,124 +387,6 @@ function app() {
           if (remain > 0.01) result.push({ ...p, ordered, remain, qty_po });
         });
       return result.sort((a, b) => b.remain - a.remain).slice(0, 8);
-    },
-
-    /* ─────────── DASHBOARD: PERIODE SEBELUMNYA & DELTA ─────────── */
-    get dashPrevRange() {
-      const s = this.dashFilter.start;
-      const e = this.dashFilter.end;
-      if (!s || !e) return { start: '', end: '' };
-      const startD = new Date(s + 'T00:00:00');
-      const endD = new Date(e + 'T00:00:00');
-      if (isNaN(startD) || isNaN(endD)) return { start: '', end: '' };
-      const spanMs = endD - startD;
-      const spanDays = Math.round(spanMs / 86400000) + 1;
-      const prevEnd = new Date(startD); prevEnd.setDate(prevEnd.getDate() - 1);
-      const prevStart = new Date(prevEnd); prevStart.setDate(prevStart.getDate() - (spanDays - 1));
-      return { start: prevStart.toISOString().slice(0, 10), end: prevEnd.toISOString().slice(0, 10) };
-    },
-
-    get dashPrevStats() {
-      const r = this.dashPrevRange;
-      if (!r.start || !r.end) return null;
-      const u = this.currentUser;
-      const inRange = (dateStr) => {
-        if (!dateStr) return false;
-        const d = String(dateStr).slice(0, 10);
-        if (r.start && d < r.start) return false;
-        if (r.end && d > r.end) return false;
-        return true;
-      };
-      let orders = this.orders.filter(o => inRange(o.delivery_date) && o.status !== 'cancelled');
-      if (u?.role === 'sales') orders = orders.filter(o => Number(o.sales_id) === Number(u.id));
-      const orderIds = orders.map(o => Number(o.id));
-      const delivs = this.deliveries.filter(d =>
-        (d.status || 'delivered') === 'delivered' && orderIds.includes(Number(d.order_id))
-      );
-      let prospeks = this.prospects.filter(p => inRange(p.created_at));
-      if (u?.role === 'sales') prospeks = prospeks.filter(p => Number(p.sales_id) === Number(u.id));
-      const qtyOrder = orders.reduce((s, o) => s + (+o.qty_order || 0), 0);
-      const qtyDelivered = delivs.reduce((s, d) => s + (+d.qty || 0), 0);
-      return {
-        totalProspek: prospeks.length,
-        repeatOrder: prospeks.filter(p => p.source === 'customer_repeat').length,
-        totalOrder: orders.length,
-        qtyOrder,
-        qtyDelivered,
-        deliveryRate: qtyOrder ? Math.min(100, (qtyDelivered / qtyOrder) * 100) : 0,
-      };
-    },
-
-    /* Delta % vs periode sebelumnya. Return { key: { val: <number>, pct: <signed number>, up: <bool> } } */
-    get dashDelta() {
-      const cur = this.dashStats;
-      const prev = this.dashPrevStats;
-      if (!prev) return {};
-      const calc = (c, p) => {
-        if (p === 0) {
-          if (c === 0) return { val: c, pct: 0, up: false };
-          return { val: c, pct: 100, up: c > 0 };
-        }
-        const pct = ((c - p) / p) * 100;
-        return { val: c, pct, up: c >= p };
-      };
-      return {
-        totalProspek: calc(cur.totalProspek, prev.totalProspek),
-        repeatOrder: calc(cur.repeatOrder, prev.repeatOrder),
-        totalOrder: calc(cur.totalOrder, prev.totalOrder),
-        qtyOrder: calc(cur.qtyOrder, prev.qtyOrder),
-        qtyDelivered: calc(cur.qtyDelivered, prev.qtyDelivered),
-        deliveryRate: calc(this.dashDeliveryRate, prev.deliveryRate),
-      };
-    },
-
-    /* ─────────── DASHBOARD: DISTRIBUSI WILAYAH ─────────── */
-    /* Keyword matching dari field address prospects/orders. */
-    get dashWilayahDistribution() {
-      const WILAYAH_KEYWORDS = [
-        'Denpasar', 'Badung', 'Gianyar', 'Tabanan', 'Klungkung', 'Bangli',
-        'Karangasem', 'Buleleng', 'Jembrana', 'Negara',
-        'Jakarta', 'Bekasi', 'Tangerang', 'Depok', 'Bogor',
-        'Cibubur', 'Cikarang',
-      ];
-      const u = this.currentUser;
-      const counts = {};
-      WILAYAH_KEYWORDS.forEach(w => counts[w] = 0);
-      let total = 0;
-      let lainnya = 0;
-      // Hitung dari prospects pada periode ini (yg sudah punya address).
-      let prospeks = this.prospects.filter(p => this.inDashRange(p.created_at));
-      if (u?.role === 'sales') prospeks = prospeks.filter(p => Number(p.sales_id) === Number(u.id));
-      prospeks.forEach(p => {
-        const addr = String(p.address || '').toLowerCase();
-        if (!addr) return;
-        let matched = false;
-        for (const w of WILAYAH_KEYWORDS) {
-          if (addr.includes(w.toLowerCase())) { counts[w]++; total++; matched = true; break; }
-        }
-        if (!matched) { lainnya++; total++; }
-      });
-      const items = WILAYAH_KEYWORDS
-        .map(w => ({ name: w, count: counts[w], percent: total ? (counts[w] / total) * 100 : 0 }))
-        .filter(it => it.count > 0)
-        .sort((a, b) => b.count - a.count);
-      if (lainnya > 0) {
-        items.push({ name: 'Lainnya', count: lainnya, percent: total ? (lainnya / total) * 100 : 0 });
-      }
-      return { items, total };
-    },
-
-    get dashInsightMsg() {
-      const d = this.dashDelta;
-      if (!d.deliveryRate) return 'Pilih rentang tanggal yang lebih panjang untuk melihat perbandingan.';
-      const pct = d.deliveryRate.pct;
-      const abs = Math.abs(pct).toFixed(1);
-      if (pct > 0.05) {
-        return `Insight: Delivery rate naik ${abs}% dibanding periode sebelumnya.`;
-      } else if (pct < -0.05) {
-        return `Insight: Delivery rate turun ${abs}% dibanding periode sebelumnya — perlu evaluasi pengiriman.`;
-      }
-      return `Insight: Delivery rate stabil dibanding periode sebelumnya (±${abs}%).`;
     },
 
     /* ─────────── DEVELOPER ACCOUNT ─────────── */
