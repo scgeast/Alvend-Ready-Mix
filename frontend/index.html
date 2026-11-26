@@ -584,6 +584,9 @@
                           <template x-if="(p.source||'internal')==='customer_repeat' && !p.sales_id && currentUser.role==='sales'">
                             <button @click="claimProspek(p)" class="btn-warning text-xs whitespace-nowrap"><i class="fa-solid fa-hand"></i> Ambil</button>
                           </template>
+                          <template x-if="isOwnerOrAdmin()">
+                            <button @click="openEditProspek(p)" class="text-blue-600 hover:text-blue-800 text-xs whitespace-nowrap" title="Edit prospek (Owner/Admin)"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
+                          </template>
                           <template x-if="isOwnerOrDeveloper()">
                             <button @click="deleteProspect(p)" class="text-red-600 hover:text-red-800 text-xs whitespace-nowrap" title="Hapus prospek (Owner only)"><i class="fa-solid fa-trash"></i></button>
                           </template>
@@ -1690,6 +1693,22 @@
               <div><span class="text-slate-500 text-xs">Qty Delivery:</span><div class="font-bold text-lg text-emerald-600" x-text="fmt(orderDetailModal.data.qty_delivery)+' m³'"></div></div>
               <div><span class="text-slate-500 text-xs">Qty Remain:</span><div class="font-bold text-lg text-orange-600" x-text="fmt(orderDetailModal.data.qty_remain)+' m³'"></div></div>
             </div>
+            <!-- Audit trail -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs space-y-1">
+              <div class="font-semibold text-blue-700 mb-1"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Riwayat Aktivitas</div>
+              <div x-show="auditInfo(orderDetailModal.data, 'created')" class="text-slate-600">
+                <i class="fa-solid fa-circle-plus text-emerald-600 mr-1"></i>
+                <span x-text="auditInfo(orderDetailModal.data, 'created')"></span>
+              </div>
+              <div x-show="auditInfo(orderDetailModal.data, 'updated')" class="text-slate-600">
+                <i class="fa-solid fa-pen-to-square text-blue-600 mr-1"></i>
+                <span x-text="auditInfo(orderDetailModal.data, 'updated')"></span>
+              </div>
+              <div x-show="auditInfo(orderDetailModal.data, 'cancelled')" class="text-red-600">
+                <i class="fa-solid fa-ban text-red-600 mr-1"></i>
+                <span x-text="auditInfo(orderDetailModal.data, 'cancelled')"></span>
+              </div>
+            </div>
             <div>
               <p class="font-semibold text-slate-700 mb-2 text-xs uppercase"><i class="fa-solid fa-truck mr-1"></i> Daftar Pengiriman</p>
               <div class="border rounded-lg overflow-x-auto max-h-60 overflow-y-auto">
@@ -1742,6 +1761,9 @@
           <div class="bg-slate-50 p-3 rounded-lg text-xs space-y-1">
             <div class="flex justify-between"><span class="text-slate-500">Order No:</span><strong class="font-mono" x-text="editDvModal.order_no"></strong></div>
             <div class="flex justify-between"><span class="text-slate-500">Tgl Kirim:</span><strong x-text="editDvModal.delivery_date"></strong></div>
+            <template x-if="editDvModal.isComplete">
+              <div class="text-amber-700 font-medium mt-1"><i class="fa-solid fa-lock mr-1"></i>Order sudah Complete — edit oleh Owner/Admin untuk koreksi.</div>
+            </template>
           </div>
           <div>
             <label class="label">Status Pengiriman *</label>
@@ -1869,6 +1891,44 @@
           <div class="flex justify-end gap-2 pt-3 border-t">
             <button type="button" @click="editAlamatModal.show=false" class="btn-secondary">Batal</button>
             <button class="btn-success"><i class="fa-solid fa-save"></i> Simpan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </template>
+
+  <!-- ═══════════ Modal: Edit Prospek (Owner/Admin) ═══════════ -->
+  <template x-if="editProspekModal.show">
+    <div class="modal-bg" @click.self="editProspekModal.show=false">
+      <div class="modal-box" style="max-width:560px">
+        <div class="p-4 border-b flex justify-between items-center bg-blue-50">
+          <h3 class="font-semibold text-blue-800"><i class="fa-solid fa-pen-to-square mr-1"></i>Edit Prospek — <span class="font-mono text-blue-700" x-text="editProspekModal.prospect_no"></span></h3>
+          <button @click="editProspekModal.show=false" class="text-slate-400"><i class="fa-solid fa-times"></i></button>
+        </div>
+        <form @submit.prevent="saveEditProspek()" class="p-4 space-y-3">
+          <div><label class="label">Project Name *</label><input x-model="epForm.project_name" required class="input"></div>
+          <div><label class="label">Alamat</label><textarea x-model="epForm.address" class="input"></textarea></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="label">PIC Name</label><input x-model="epForm.pic_name" class="input"></div>
+            <div><label class="label">PIC Contact</label><input x-model="epForm.pic_contact" class="input"></div>
+          </div>
+          <div><label class="label">Construction Type</label><input x-model="epForm.construction_type" class="input" placeholder="mis. Rumah, Jembatan, Tol..."></div>
+          <div>
+            <label class="label">Kompetitor</label>
+            <select x-model="epForm.competitor_id" class="input">
+              <option value="">-- Tidak ada --</option>
+              <template x-for="c in competitors" :key="c.id">
+                <option :value="c.id" x-text="c.name"></option>
+              </template>
+            </select>
+          </div>
+          <div x-show="!epForm.competitor_id">
+            <label class="label">Kompetitor (lain)</label>
+            <input x-model="epForm.competitor_other" class="input" placeholder="Tulis nama kompetitor lain...">
+          </div>
+          <div class="flex justify-end gap-2 pt-3 border-t">
+            <button type="button" @click="editProspekModal.show=false" class="btn-secondary">Batal</button>
+            <button class="btn-success"><i class="fa-solid fa-save"></i> Simpan Perubahan</button>
           </div>
         </form>
       </div>
