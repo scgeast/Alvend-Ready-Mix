@@ -801,26 +801,24 @@
           <!-- ═══════════ ORDER SEARCH ═══════════ -->
           <div x-show="page==='orderSearch' && hasAccess('orderSearch')">
             <div class="card mb-4">
-              <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-                <input x-model="sFilter.q" placeholder="Order/Site/Project" class="input md:col-span-2">
-                <select x-model="sFilter.plant_id" class="input">
+              <div class="flex flex-wrap gap-2 items-stretch">
+                <input x-model="sFilter.q" placeholder="Order/Site/Project" class="input flex-1 min-w-[140px]">
+                <select x-model="sFilter.plant_id" class="input flex-1 min-w-[120px]">
                   <option value="">Plant</option>
                   <template x-for="p in plants" :key="p.id"><option :value="p.id" x-text="p.name"></option></template>
                 </select>
-                <select x-model="sFilter.mutu_id" class="input">
+                <select x-model="sFilter.mutu_id" class="input flex-1 min-w-[120px]">
                   <option value="">Mutu</option>
                   <template x-for="m in mutuList" :key="m.id"><option :value="m.id" x-text="m.code"></option></template>
                 </select>
-                <div class="flex gap-2">
-                  <select x-model="sFilter.status" class="input flex-1">
-                    <option value="">Status</option>
-                    <option value="scheduled">Scheduled</option>
-                    <option value="partial">Partial</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                  <button type="button" @click="downloadOrderSearchExcel()" class="btn-success text-sm flex items-center justify-center whitespace-nowrap" title="Download Excel"><i class="fa-solid fa-file-excel"></i></button>
-                </div>
+                <select x-model="sFilter.status" class="input flex-1 min-w-[120px]">
+                  <option value="">Status</option>
+                  <option value="scheduled">Scheduled</option>
+                  <option value="partial">Partial</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+                <button type="button" @click="downloadOrderSearchExcel()" class="btn btn-success flex items-center justify-center" style="width:42px; min-width:42px; padding:0;" title="Download Excel"><i class="fa-solid fa-file-excel"></i></button>
               </div>
             </div>
             <div class="card overflow-x-auto">
@@ -1027,21 +1025,21 @@
           <!-- ═══════════ AFTER DELIVERY ═══════════ -->
           <div x-show="page==='afterDelivery' && hasAccess('afterDelivery')">
             <div class="card mb-4">
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2">
-                <input x-model="adFilter.q" placeholder="Order No / Site No / Project / No SJ" class="input">
-                <select x-model="adFilter.plant_id" class="input">
+              <div class="flex flex-wrap gap-2 items-stretch">
+                <input x-model="adFilter.q" placeholder="Order No / Site No / Project / No SJ" class="input flex-1 min-w-[140px]">
+                <select x-model="adFilter.plant_id" class="input flex-1 min-w-[120px]">
                   <option value="">Semua Plant</option>
                   <template x-for="p in plants" :key="p.id"><option :value="String(p.id)" x-text="p.name"></option></template>
                 </select>
-                <input type="date" x-model="adFilter.date_from" class="input" title="Tanggal kirim mulai">
-                <input type="date" x-model="adFilter.date_to" class="input" title="Tanggal kirim sampai">
-                <select x-model="adFilter.status" class="input">
+                <input type="date" x-model="adFilter.date_from" class="input flex-1 min-w-[140px]" title="Tanggal kirim mulai">
+                <input type="date" x-model="adFilter.date_to" class="input flex-1 min-w-[140px]" title="Tanggal kirim sampai">
+                <select x-model="adFilter.status" class="input flex-1 min-w-[120px]">
                   <option value="">Semua Status</option>
                   <option value="delivered">Delivered (Aktif)</option>
                   <option value="rejected">Rejected</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
-                <button type="button" @click="downloadAfterDeliveryExcel()" class="btn-success text-sm flex items-center justify-center" title="Download Excel"><i class="fa-solid fa-file-excel"></i></button>
+                <button type="button" @click="downloadAfterDeliveryExcel()" class="btn btn-success flex items-center justify-center" style="width:42px; min-width:42px; padding:0;" title="Download Excel"><i class="fa-solid fa-file-excel"></i></button>
               </div>
             </div>
             <div class="card overflow-x-auto">
